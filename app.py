@@ -1,7 +1,18 @@
+# ===== Windows UTF-8 编码修复（必须在最顶部） =====
+import sys
+if hasattr(sys.stdout, 'reconfigure'):
+    try:
+        sys.stdout.reconfigure(encoding='utf-8')
+        sys.stderr.reconfigure(encoding='utf-8')
+    except Exception:
+        pass
+# =================================================
+
 import streamlit as st
 import sqlite3
 import base64
 import calendar
+import os
 from datetime import date
 from openai import OpenAI
 from PIL import Image
@@ -36,21 +47,29 @@ CHILDREN = {
 }
 
 PASSWORDS = {
-    "赵婉茹":  "8888",
-    "赵中苧":  "8888",
-    "宝贝1":  "8888",
-    "宝贝2":  "8888",
-    "宝贝3":  "8888",
-    "家长":  "6666",
+    "赵婉茹":  "wanru123",
+    "赵中苧":  "zhongzhu123",
+    "宝贝1":  "baby001",
+    "宝贝2":  "baby002",
+    "宝贝3":  "baby003",
+    "家长":   "parent888",
 }
 
 SUBJECTS = ["语文", "数学", "英语"]
 
 ALL_USERS = list(CHILDREN.keys()) + ['家长']
-DB = 'study.db'
+# 使用 os.path 确保 Windows 路径兼容
+DB_DIR = os.path.dirname(os.path.abspath(__file__))
+DB = os.path.join(DB_DIR, 'study.db')
+
+def get_conn():
+    """创建带 UTF-8 支持的 sqlite3 连接"""
+    conn = sqlite3.connect(DB, check_same_thread=False)
+    conn.execute('PRAGMA encoding="UTF-8"')
+    return conn
 
 def init_db():
-    conn = sqlite3.connect(DB)
+    conn = get_conn()
     c = conn.cursor()
     c.execute(
         'CREATE TABLE IF NOT EXISTS wrong_questions ('
@@ -87,7 +106,7 @@ def doubao_analyze_image(image_bytes, child_name, grade):
     client = get_doubao()
     if not client:
         return '请先配置 DOUBAO_API_KEY', '未分类'
-    img_b64 = base64.b64encode(image_bytes).decode()
+    img_b64 = base64.b64encode(image_bytes).decode('utf-8')
     prompt = (
         f'你是一位耐心的老师，请看这道题的图片，完成以下任务：\n'
         f'1. 第一行必须输出：科目：语文 或 科目：数学 或 科目：英语（三选一）\n'
@@ -117,7 +136,8 @@ def doubao_analyze_image(image_bytes, child_name, grade):
                 break
         return content, subject
     except Exception as e:
-        return f'豆包分析失败：{e}', '未分类'
+        err_msg = str(e)
+        return f'豆包分析失败：{err_msg}', '未分类'
 
 def deepseek_gen(prompt, max_tokens=700):
     client = get_deepseek()
@@ -131,11 +151,12 @@ def deepseek_gen(prompt, max_tokens=700):
         )
         return resp.choices[0].message.content
     except Exception as e:
-        return f'DeepSeek生成失败：{e}'
+        err_msg = str(e)
+        return f'DeepSeek生成失败：{err_msg}'
 
 def get_daily_words(grade):
     today = str(date.today())
-    conn = sqlite3.connect(DB)
+    conn = get_conn()
     row = conn.execute(
         'SELECT content FROM daily_content WHERE content_date=? AND content_type=?',
         (today, 'daily_words')
@@ -152,7 +173,7 @@ def get_daily_words(grade):
         '风格活泼有趣，多用emoji。'
     )
     content = deepseek_gen(prompt, 700)
-    conn = sqlite3.connect(DB)
+    conn = get_conn()
     conn.execute(
         'INSERT INTO daily_content(content_date, content_type, content) VALUES(?,?,?)',
         (today, 'daily_words', content)
@@ -162,14 +183,14 @@ def get_daily_words(grade):
     return content
 
 def gen_study_plan(child_name, mode):
-    conn = sqlite3.connect(DB)
+    conn = get_conn()
     rows = conn.execute(
         'SELECT subject, question FROM wrong_questions '
         'WHERE child_name=? AND is_mastered=0 ORDER BY created_date DESC LIMIT 15',
         (child_name,)
     ).fetchall()
     conn.close()
-    weak = '\n'.join([f'- {s}: {q[:30]}' for s, q in rows]) if rows else '暂无错题记录'
+    weak = '\n'.join([f'- {s}: {str(q or "")[:30]}' for s, q in rows]) if rows else '暂无错题记录'
     grade = CHILDREN.get(child_name, {}).get('grade', '小学')
     prompt = (
         f'请为{child_name}（{grade}）制定一份{mode}每日学习计划。\n\n'
@@ -203,9 +224,9 @@ def page_login():
                 st.error('密码不对哦，再试试！🙈')
 
 def page_home(user):
-    grade = CHILDREN.get(user, {}).get('grade', '')
+    grade = CHILDREN.get(user, {}).get('grade', '小学')
     st.markdown(f'<div class="title-main">🌈 {user}的学习空间</div>', unsafe_allow_html=True)
-    conn = sqlite3.connect(DB)
+    conn = get_conn()
     today = str(date.today())
     if user in CHILDREN:
         total    = conn.execute('SELECT COUNT(*) FROM wrong_questions WHERE child_name=?', (user,)).fetchone()[0]
@@ -223,7 +244,8 @@ def page_home(user):
     st.markdown('---')
     st.markdown('### 💡 今日好词好句')
     with st.spinner('正在生成今日内容...'):
-        st.info(get_daily_words(grade or '小学'))
+        result = get_daily_words(grade)
+        st.info(result)
 
 def page_upload(user):
     grade = CHILDREN.get(user, {}).get('grade', '小学')
@@ -239,7 +261,7 @@ def page_upload(user):
                     analysis, subject = doubao_analyze_image(uploaded.getvalue(), user, grade)
                     st.session_state.auto_analysis = analysis
                     st.session_state.auto_subject = subject
-                    st.session_state.auto_img = base64.b64encode(uploaded.getvalue()).decode()
+                    st.session_state.auto_img = base64.b64encode(uploaded.getvalue()).decode('utf-8')
                 st.success(f'识别完成，科目：{subject}')
     with right:
         st.markdown('#### ✏️ 分析结果（可修改）')
@@ -252,7 +274,7 @@ def page_upload(user):
             if not analysis_text.strip():
                 st.warning('请先上传图片并识别，或手动输入内容')
             else:
-                conn = sqlite3.connect(DB)
+                conn = get_conn()
                 conn.execute(
                     'INSERT INTO wrong_questions(child_name,subject,question,wrong_reason,ai_analysis,image_data,created_date) VALUES(?,?,?,?,?,?,?)',
                     (user, subject, analysis_text, reason, analysis_text, st.session_state.get('auto_img', ''), str(date.today()))
@@ -266,7 +288,7 @@ def page_upload(user):
 
 def page_wrong_list(user):
     st.markdown('<div class="title-main">📖 我的错题本</div>', unsafe_allow_html=True)
-    conn = sqlite3.connect(DB)
+    conn = get_conn()
     tabs = st.tabs([f'{SUBJECT_ICONS[s]} {s}' for s in SUBJECTS])
     for tab, subject in zip(tabs, SUBJECTS):
         with tab:
@@ -284,13 +306,14 @@ def page_wrong_list(user):
                 if is_mastered and not show_mastered:
                     continue
                 icon = '✅' if is_mastered else '❌'
-                with st.expander(f'{icon} {d}  |  {q[:45]}...'):
+                q_text = str(q or '')[:45]
+                with st.expander(f'{icon} {d}  |  {q_text}...'):
                     st.markdown('**完整内容：**')
-                    st.write(q)
+                    st.write(q or '')
                     if reason:
-                        st.markdown(f'**我的错误原因：** {reason}')
+                        st.markdown(f'**我的错误原因：** {str(reason)}')
                     st.markdown('---')
-                    st.markdown(analysis)
+                    st.markdown(str(analysis or ''))
                     col1, col2 = st.columns(2)
                     with col1:
                         if not is_mastered and st.button('✅ 标记已掌握', key=f'master_{qid}'):
@@ -307,7 +330,7 @@ def page_wrong_list(user):
 def page_checkin(user):
     st.markdown('<div class="title-main">✅ 今日打卡</div>', unsafe_allow_html=True)
     today = str(date.today())
-    conn = sqlite3.connect(DB)
+    conn = get_conn()
     exists = conn.execute('SELECT 1 FROM checkins WHERE child_name=? AND checkin_date=?', (user, today)).fetchone()
     if exists:
         st.success(f'🎉 {user}今天已经打卡啦！坚持就是胜利！')
@@ -357,28 +380,28 @@ def page_plan(user):
             plan = gen_study_plan(user, mode)
         st.markdown('### 📋 你的专属学习计划')
         st.markdown(plan)
-        conn = sqlite3.connect(DB)
+        conn = get_conn()
         conn.execute('INSERT INTO daily_content(content_date,content_type,content) VALUES(?,?,?)', (str(date.today()), f'plan_{user}', plan))
         conn.commit()
         conn.close()
     st.markdown('---')
     st.markdown('### 📚 历史计划')
-    conn = sqlite3.connect(DB)
+    conn = get_conn()
     plans = conn.execute('SELECT content_date, content FROM daily_content WHERE content_type=? ORDER BY content_date DESC LIMIT 7', (f'plan_{user}',)).fetchall()
     conn.close()
     for p_date, p_content in plans:
         with st.expander(f'📅 {p_date} 的学习计划'):
-            st.markdown(p_content)
+            st.markdown(str(p_content or ''))
 
 def page_daily_words(user):
     st.markdown('<div class="title-main">🌟 今日好词好句</div>', unsafe_allow_html=True)
     grade = CHILDREN.get(user, {}).get('grade', '小学')
     with st.spinner('正在生成今日内容...'):
         content = get_daily_words(grade)
-    st.markdown(content)
+    st.markdown(str(content))
     st.markdown('---')
     if st.button('🔄 换一批新内容'):
-        conn = sqlite3.connect(DB)
+        conn = get_conn()
         conn.execute('DELETE FROM daily_content WHERE content_date=? AND content_type=?', (str(date.today()), 'daily_words'))
         conn.commit()
         conn.close()
@@ -386,7 +409,7 @@ def page_daily_words(user):
 
 def page_parent():
     st.markdown('<div class="title-main">👨‍👩‍👧‍👦 家长总览</div>', unsafe_allow_html=True)
-    conn = sqlite3.connect(DB)
+    conn = get_conn()
     today = str(date.today())
     cols = st.columns(len(CHILDREN))
     for col, (child, info) in zip(cols, CHILDREN.items()):
