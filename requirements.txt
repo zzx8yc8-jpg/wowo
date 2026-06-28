@@ -3,3 +3,4 @@ openai>=2.0.0
 Pillow==10.3.0
 pandas==2.2.2
 plotly==5.22.0
+gtts==2.5.4
