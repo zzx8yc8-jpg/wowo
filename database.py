@@ -14,6 +14,7 @@
 import os
 import sqlite3
 import re
+import time
 import streamlit as st
 from datetime import date, timedelta
 
@@ -66,15 +67,45 @@ class _MySQLWrapper:
 
     def execute(self, sql, params=None):
         msql = _sqlite_to_mysql(sql)
-        if params is None:
-            self.cursor.execute(msql)
-        else:
-            self.cursor.execute(msql, params)
-        return self  # 支持链式调用
+        for attempt in range(2):
+            try:
+                if params is None:
+                    self.cursor.execute(msql)
+                else:
+                    self.cursor.execute(msql, params)
+                return self
+            except Exception as e:
+                if attempt == 0 and self._is_connection_error(e):
+                    # 连接断开，重连后重试一次
+                    self._reconnect()
+                    continue
+                raise
+        return self
+
+    def _is_connection_error(self, e):
+        err_str = str(e).lower()
+        return any(kw in err_str for kw in ['lost connection', 'broken pipe', 'connection reset',
+                                             'timeout', 'server closed', 'write failed'])
+
+    def _reconnect(self):
+        try:
+            self.cursor.close()
+        except Exception:
+            pass
+        try:
+            self.conn.close()
+        except Exception:
+            pass
+        self._connect()
 
     def executemany(self, sql, params_list):
         msql = _sqlite_to_mysql(sql)
-        self.cursor.executemany(msql, params_list)
+        try:
+            self.cursor.executemany(msql, params_list)
+        except Exception as e:
+            if self._is_connection_error(e):
+                self._reconnect()
+                self.cursor.executemany(msql, params_list)
         return self
 
     def fetchone(self):
@@ -88,7 +119,10 @@ class _MySQLWrapper:
         return self.cursor.lastrowid
 
     def commit(self):
-        self.conn.commit()
+        try:
+            self.conn.commit()
+        except Exception:
+            pass
 
     def close(self):
         try:
@@ -99,9 +133,6 @@ class _MySQLWrapper:
             self.conn.close()
         except Exception:
             pass
-
-    def rowcount(self):
-        return self.cursor.rowcount
 
 
 class _SQLiteWrapper:
@@ -206,19 +237,9 @@ class Database:
             print(f'[DB] 创建 studydb 失败: {e}')
 
     def _get_wrapper(self):
-        """获取数据库连接（自动重连）"""
+        """获取数据库连接（惰性创建，无健康检查——执行时会自动重连）"""
         if self.mode == 'mysql':
-            try:
-                if self._wrapper is None:
-                    self._wrapper = _MySQLWrapper(self._mysql_config)
-                else:
-                    # 检查连接是否存活
-                    self._wrapper.execute('SELECT 1')
-            except Exception:
-                try:
-                    self._wrapper.close()
-                except Exception:
-                    pass
+            if self._wrapper is None:
                 self._wrapper = _MySQLWrapper(self._mysql_config)
         else:
             if self._wrapper is None:
