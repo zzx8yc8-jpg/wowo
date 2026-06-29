@@ -31,88 +31,128 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# ========== 清爽可读 CSS ==========
+# ========== 浅色大字体 UI ==========
 st.markdown("""
 <style>
-/* 全局：深色文字 + 浅灰背景 */
-html, body, .stApp {
+/*=== 强制浅色模式，所有背景纯白 ===*/
+html, body, .stApp, #root {
     color: #1E293B !important;
-    background: #F1F5F9 !important;
-    font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    background-color: #F1F5F9 !important;
 }
+.stApp { background-color: #F1F5F9 !important; }
 
-/* 主内容区域 — 纯白背景 */
+/* 主内容卡片 — 纯白 */
 .main .block-container {
-    background: #FFFFFF;
+    background: #FFFFFF !important;
     border-radius: 20px 20px 0 0;
-    padding: 1rem 1rem 1.5rem 1rem;
-    min-height: calc(100vh - 56px);
+    padding: 1.2rem 1rem !important;
 }
 
-/* 所有文字强制深色 */
-p, span, li, label, div, .stMarkdown, .stText { color: #1E293B !important; }
-.stAlert, .stAlert p { color: #1E293B !important; }
+/*=== 所有文字深色大号 ===*/
+p, span, li, label, .stMarkdown, .stText, .st-bw, div:not([class*="nav"]) {
+    color: #1E293B !important;
+    font-size: 16px !important;
+}
+.stAlert, .stAlert p, .stAlert div { color: #1E293B !important; font-size: 15px !important; }
+small, .caption, .st-at { font-size: 14px !important; color: #64748B !important; }
+
+/*=== 输入框 — 白底黑字 ===*/
 .stTextInput>div>input, .stSelectbox>div>div, .stTextArea textarea {
-    color: #1E293B !important; border-color: #CBD5E1 !important;
+    background-color: #FFFFFF !important;
+    color: #1E293B !important;
+    font-size: 16px !important;
+    border: 2px solid #E2E8F0 !important;
+    border-radius: 12px !important;
+    padding: 10px 14px !important;
+}
+.stTextInput>div>input:focus, .stSelectbox>div>div:focus, .stTextArea textarea:focus {
+    border-color: #4F46E5 !important;
+    box-shadow: 0 0 0 3px rgba(79,70,229,0.15) !important;
+}
+.stTextInput label, .stSelectbox label, .stTextArea label {
+    color: #1E293B !important; font-weight: 600 !important; font-size: 15px !important;
 }
 
-/* 顶部导航 */
+/*=== 顶部导航栏 ===*/
 .top-nav {
     background: linear-gradient(135deg, #4F46E5, #7C3AED);
-    padding: 0.5rem 0.8rem;
+    padding: 0.7rem 1rem;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    border-radius: 0 0 16px 16px;
-    box-shadow: 0 2px 10px rgba(79,70,229,0.2);
+    border-radius: 0 0 18px 18px;
+    box-shadow: 0 2px 12px rgba(79,70,229,0.2);
 }
-.top-nav-user { color:#fff; font-size:0.9rem; font-weight:600; display:flex; align-items:center; gap:6px; }
-.top-nav-user small { opacity:0.8; font-size:0.7rem; color:rgba(255,255,255,0.8) !important; }
+.top-nav-user { color:#fff; font-size:17px; font-weight:600; display:flex; align-items:center; gap:8px; }
+.top-nav-user small { font-size:13px; opacity:0.85; color:rgba(255,255,255,0.85) !important; }
 
-/* Tab 按钮 */
+/*=== 顶部 Tab 导航 ===*/
 .nav-tab-active {
-    text-align:center; background:#EEF2FF; border-radius:12px; padding:8px 4px;
-    box-shadow:0 2px 6px rgba(79,70,229,0.1);
+    text-align: center; background: #EEF2FF; border-radius: 14px;
+    padding: 10px 4px; box-shadow: 0 2px 8px rgba(79,70,229,0.1);
 }
-.nav-tab-active div:first-child { font-size:1.2rem; }
-.nav-tab-active div:last-child { font-size:0.7rem; font-weight:700; color:#4F46E5; }
+.nav-tab-active div:first-child { font-size: 22px; }
+.nav-tab-active div:last-child { font-size: 13px; font-weight: 700; color: #4F46E5; }
 
-/* 标题 */
-.title-main { font-size:1.3rem; font-weight:800; color:#1E293B; text-align:center; padding:0.3rem 0; }
+/* 非活跃 Tab — 去掉紫色按钮, 显示为纯文字 */
+.nav-tab-inactive button {
+    background: transparent !important;
+    color: #94A3B8 !important;
+    box-shadow: none !important;
+    font-size: 13px !important;
+    padding: 10px 4px !important;
+    border: none !important;
+}
+.nav-tab-inactive button:hover { color: #4F46E5 !important; background: #F8FAFC !important; }
 
-/* 按钮 */
+/*=== 通用按钮 ===*/
 .stButton>button {
-    border-radius:12px !important; font-weight:600 !important; font-size:0.9rem !important;
-    background:#4F46E5 !important; color:#fff !important; border:none !important;
-    padding:0.5rem 1rem !important; width:100% !important;
-    box-shadow:0 2px 6px rgba(79,70,229,0.2) !important;
+    border-radius: 14px !important;
+    font-weight: 600 !important;
+    font-size: 16px !important;
+    background: #4F46E5 !important;
+    color: #fff !important;
+    border: none !important;
+    padding: 10px 16px !important;
+    width: 100% !important;
+    box-shadow: 0 2px 8px rgba(79,70,229,0.2) !important;
 }
-.stButton>button:hover { background:#4338CA !important; }
+.stButton>button:hover { background: #4338CA !important; box-shadow: 0 4px 14px rgba(79,70,229,0.3) !important; }
 
-/* 统计卡片 */
-.stat-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:0.8rem; }
-.stat-card { background:#F8FAFC; border-radius:14px; padding:0.8rem; text-align:center; border:1px solid #E2E8F0; }
-.stat-number { font-size:1.5rem; font-weight:800; color:#4F46E5; }
-.stat-label { font-size:0.78rem; color:#475569; margin-top:2px; }
+/*=== 标题 ===*/
+.title-main { font-size: 20px; font-weight: 800; color: #1E293B; text-align: center; padding: 6px 0 10px 0; }
 
-/* 分割线、消息框、Expander */
-hr { margin:0.8rem 0 !important; border-color:#E2E8F0 !important; }
-.stAlert { border-radius:12px !important; }
-.streamlit-expanderHeader { border-radius:12px !important; background:#F8FAFC !important; font-weight:600 !important; font-size:0.85rem !important; }
-.streamlit-expanderContent { border-radius:0 0 12px 12px !important; border:1px solid #E2E8F0 !important; border-top:none !important; }
+/*=== 统计卡片 ===*/
+.stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 12px 0; }
+.stat-card { background: #F8FAFC; border-radius: 16px; padding: 14px 10px; text-align: center; border: 1px solid #E2E8F0; }
+.stat-number { font-size: 26px; font-weight: 800; color: #4F46E5; }
+.stat-label { font-size: 14px; color: #475569; margin-top: 2px; }
 
-/* 侧边栏隐藏 */
-div[data-testid="stSidebar"] { display:none !important; }
+/*=== 信息框 / 分割线 / Expander ===*/
+div[data-testid="stAlertContainer"] { border-radius: 14px !important; }
+hr { margin: 16px 0 !important; border: none !important; border-top: 1px solid #E2E8F0 !important; }
+.streamlit-expanderHeader {
+    border-radius: 12px !important; background: #F8FAFC !important;
+    font-weight: 600 !important; font-size: 15px !important; padding: 10px 14px !important;
+    border: 1px solid #E2E8F0 !important;
+}
+.streamlit-expanderContent {
+    border: 1px solid #E2E8F0 !important; border-top: none !important;
+    border-radius: 0 0 12px 12px !important; padding: 14px !important;
+}
 
-/* 日历 */
-.calendar-header { text-align:center; font-weight:600; font-size:0.8rem; color:#475569; padding:4px 0; }
-.calendar-day { text-align:center; padding:5px 0; font-size:0.8rem; color:#1E293B; }
+/*=== 日历 & 侧边栏 ===*/
+.calendar-header { text-align: center; font-weight: 600; font-size: 14px; color: #475569; padding: 6px 0; }
+.calendar-day { text-align: center; padding: 8px 0; font-size: 14px; color: #1E293B; }
+div[data-testid="stSidebar"] { display: none !important; }
 
-/* 移动端 */
-@media (max-width:640px) {
-    .main .block-container { padding:0.8rem; }
-    .title-main { font-size:1.1rem; }
-    .stat-number { font-size:1.3rem; }
+/*=== 移动端适配 ===*/
+@media (max-width: 640px) {
+    .main .block-container { padding: 0.8rem 0.6rem !important; }
+    .title-main { font-size: 18px; }
+    .stat-number { font-size: 22px; }
+    p, span, li, label, .stMarkdown, .stText { font-size: 15px !important; }
+    .stButton>button { font-size: 15px !important; padding: 8px 12px !important; }
 }
 </style>
 """, unsafe_allow_html=True)
@@ -419,9 +459,8 @@ def page_login():
 
     _, col, _ = st.columns([1, 4, 1])
     with col:
-        st.markdown('<div style="background:#F8FAFC;border-radius:20px;padding:1.5rem;">', unsafe_allow_html=True)
-        user = st.selectbox('👤 选择孩子', ALL_USERS, label_visibility='collapsed')
-        pwd = st.text_input('🔑', placeholder='输入密码', type='password', label_visibility='collapsed')
+        user = st.selectbox('👤 选择孩子', ALL_USERS, label_visibility='visible')
+        pwd = st.text_input('🔑 密码', value='', placeholder='输入密码', type='password')
         st.markdown('<br>', unsafe_allow_html=True)
         if st.button('🚀 进入学习空间', use_container_width=True):
             if PASSWORDS.get(user) == pwd:
@@ -868,15 +907,13 @@ def main_app():
         with cols[i]:
             is_active = (icon == current_short)
             if is_active:
-                st.markdown(
-                    f'<div class="nav-tab-active">'
-                    f'<div>{icon}</div><div>{label}</div></div>',
-                    unsafe_allow_html=True
-                )
+                st.markdown(f'<div class="nav-tab-active"><div>{icon}</div><div>{label}</div></div>', unsafe_allow_html=True)
             else:
+                st.markdown(f'<div class="nav-tab-inactive">', unsafe_allow_html=True)
                 if st.button(f'{icon}\n{label}', key=f'tab_{icon}', use_container_width=True):
                     st.session_state.nav_page = icon_page_map.get(icon, icon)
                     st.rerun()
+                st.markdown(f'</div>', unsafe_allow_html=True)
 
     # ===== 页面路由 =====
     if   page == '🏠 首页':       page_home(user)
