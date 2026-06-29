@@ -15,7 +15,7 @@ import os
 import tempfile
 import io
 import re
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from openai import OpenAI
 from PIL import Image
 import pandas as pd
@@ -116,7 +116,7 @@ div[data-testid="stSidebar"] { display:none !important; }
 }
 @keyframes gradientText { 0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%} }
 
-/*=== 好词好句卡片 ===*/
+/*=== 好词好句卡片 — 所有内容纯黑加粗 ===*/
 .daily-words {
     background: linear-gradient(135deg, #EFF6FF 0%, #FDF2F8 100%);
     border-radius: 16px;
@@ -124,12 +124,18 @@ div[data-testid="stSidebar"] { display:none !important; }
     border: 1.5px solid #BFDBFE;
     line-height: 1.9;
     font-size: 16px;
-    font-weight: 500;
+    font-weight: 600 !important;
     color: #000 !important;
     animation: fadeUp 0.5s ease-out;
 }
-.daily-words strong, .daily-words b { color: #1D4ED8; font-weight: 800; }
-.daily-words em { color: #6D28D9; font-style: normal; font-weight: 700; }
+.daily-words * {
+    color: #000 !important;
+    font-weight: 600 !important;
+    font-size: 16px !important;
+    line-height: 1.9 !important;
+}
+.daily-words strong, .daily-words b { color: #1D4ED8 !important; font-weight: 800 !important; }
+.daily-words em { color: #6D28D9 !important; font-style: normal !important; font-weight: 700 !important; }
 
 @media (max-width:640px) {
     .main .block-container { padding:0.8rem 0.6rem !important; }
@@ -369,7 +375,7 @@ h2 {{ font-size: 16px; color: #764ba2; margin: 15px 0 10px; }}
 </head>
 <body>
 <h1>🌟 {title}</h1>
-<div class="header-info">📅 {date.today().strftime("%Y年%m月%d日")}</div>
+<div class="header-info">📅 {datetime.now().strftime("%Y年%m月%d日 %H:%M")}</div>
 <div class="page-break">
 <h2>📝 题目</h2>
 {q_html}
@@ -502,6 +508,16 @@ def page_home(user):
     with st.spinner('正在生成今日中英双语内容...'):
         result = get_daily_words(grade)
         st.markdown(f'<div class="daily-words">{result}</div>', unsafe_allow_html=True)
+        # PDF 导出按钮
+        now_str = datetime.now().strftime('%Y%m%d_%H%M')
+        display_time = datetime.now().strftime('%Y年%m月%d日 %H:%M')
+        html = generate_print_html(
+            f'{user} 今日好词好句（{display_time}）',
+            [result],
+            []
+        )
+        st.download_button('📥 导出今日好词好句（PDF打印）', data=html.encode('utf-8'),
+                          file_name=f'{user}_好词好句_{now_str}.html', mime='text/html')
 
         # 英语听力播放
         pairs = extract_english_audio_pairs(result)
@@ -677,7 +693,7 @@ def page_plan(user):
         with st.spinner('DeepSeek 正在为你量身定制...'):
             plan = gen_study_plan(user, mode)
         st.markdown('### 📋 你的专属计划')
-        st.markdown(plan)
+        st.markdown(f'<div class="daily-words">{plan}</div>', unsafe_allow_html=True)
         db.execute('INSERT INTO daily_content(content_date,content_type,content) VALUES(?,?,?)',
                    (str(date.today()), f'plan_{user}', plan))
         db.commit()
