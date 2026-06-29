@@ -53,11 +53,18 @@ p, span, li, label, .stMarkdown, .stText { color: #000000 !important; font-size:
 .stAlert, .stAlert p, .stAlert div { color: #000000 !important; font-size: 16px !important; font-weight: 500 !important; }
 small, .caption { font-size: 15px !important; color: #000000 !important; font-weight: 500 !important; }
 
-/*=== 输入框 ===*/
-.stTextInput>div>input, .stSelectbox>div>div, .stTextArea textarea {
-    background: #FFFFFF !important; color: #000000 !important;
+/*=== 输入框 — 强制黑色文字 ===*/
+.stTextInput>div>input, .stSelectbox>div>div, .stTextArea textarea,
+.stTextInput input, .stSelectbox input, .stTextArea textarea,
+.stTextInput input:focus, .stSelectbox input:focus, .stTextArea textarea:focus {
+    background: #FFFFFF !important;
+    color: #000000 !important;
+    -webkit-text-fill-color: #000000 !important;
     font-size: 17px !important; font-weight: 500 !important;
     border: 2px solid #9CA3AF !important; border-radius: 12px !important; padding: 10px 14px !important;
+}
+.stTextInput input::placeholder, .stTextArea textarea::placeholder {
+    color: #6B7280 !important; -webkit-text-fill-color: #6B7280 !important;
 }
 .stTextInput>div>input:focus, .stSelectbox>div>div:focus, .stTextArea textarea:focus {
     border-color: #2563EB !important; box-shadow: 0 0 0 3px rgba(37,99,235,0.15) !important;
@@ -389,6 +396,53 @@ h2 {{ font-size: 16px; color: #764ba2; margin: 15px 0 10px; }}
 </html>'''
     return html
 
+
+# ========== 真实 PDF 生成（reportlab + A4） ==========
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.cidfonts import UnicodeCIDFont
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.units import mm
+
+pdfmetrics.registerFont(UnicodeCIDFont('STHeiti-Regular'))
+
+def generate_pdf(title, content_lines):
+    """生成 A4 排版 PDF，返回 bytes"""
+    from io import BytesIO
+    buf = BytesIO()
+    c = canvas.Canvas(buf, pagesize=A4)
+    width, height = A4
+
+    c.setFont('STHeiti-Regular', 16)
+    c.drawString(30*mm, height - 25*mm, title)
+    c.setFont('STHeiti-Regular', 10)
+    c.drawString(30*mm, height - 33*mm, f'生成：{datetime.now().strftime("%Y年%m月%d日 %H:%M")}')
+    c.line(25*mm, height - 38*mm, width - 25*mm, height - 38*mm)
+
+    c.setFont('STHeiti-Regular', 12)
+    y = height - 48*mm
+    line_h = 7*mm
+    for line in content_lines:
+        if not line.strip():
+            y -= line_h * 0.5
+            continue
+        while len(line) > 55:
+            c.drawString(30*mm, y, line[:55])
+            line = line[55:]
+            y -= line_h
+            if y < 20*mm:
+                c.showPage()
+                c.setFont('STHeiti-Regular', 12)
+                y = height - 25*mm
+        c.drawString(30*mm, y, line)
+        y -= line_h
+        if y < 20*mm:
+            c.showPage()
+            c.setFont('STHeiti-Regular', 12)
+            y = height - 25*mm
+    c.save()
+    return buf.getvalue()
+
 # ========== 抽取英语内容用于听力 ==========
 def extract_english_audio_pairs(content):
     """从今日内容中抽取出英语句子用于播放（支持 >> 前缀格式）"""
@@ -516,8 +570,9 @@ def page_home(user):
             [result],
             []
         )
-        st.download_button('📥 导出今日好词好句（PDF打印）', data=html.encode('utf-8'),
-                          file_name=f'{user}_好词好句_{now_str}.html', mime='text/html')
+        pdf_bytes = generate_pdf(f'{user} 今日好词好句', result.split('\n'))
+        st.download_button('📥 导出今日好词好句（PDF打印）', data=pdf_bytes,
+                          file_name=f'{user}_好词好句_{now_str}.pdf', mime='application/pdf')
 
         # 英语听力播放
         pairs = extract_english_audio_pairs(result)
@@ -597,19 +652,15 @@ def page_wrong_list(user):
             q_list = [f'{r[4]}\n\n{str(r[1] or "")[:80]}...' for r in rows if not r[5]]
             a_list = [f'答案：{str(r[3] or "")[:100]}' for r in rows if not r[5]]
             if q_list:
-                html = generate_print_html(
-                    f'{user} {subject} 错题练习',
-                    q_list,
-                    a_list
-                )
+                content_lines = ['【题目】', ''] + q_list + ['', '【答案】', ''] + a_list
+                pdf_bytes = generate_pdf(f'{user} {subject} 错题练习', content_lines)
                 st.download_button(
                     f'📥 导出{subject}错题练习（PDF打印）',
-                    data=html.encode('utf-8'),
-                    file_name=f'{user}_{subject}_错题练习.html',
-                    mime='text/html',
+                    data=pdf_bytes,
+                    file_name=f'{user}_{subject}_错题练习_{date.today()}.pdf',
+                    mime='application/pdf',
                     key=f'pdf_{subject}'
                 )
-                st.markdown('<small>💡 下载后用浏览器打开 → 打印 → 另存为PDF</small>', unsafe_allow_html=True)
 
             show_mastered = st.checkbox('显示已掌握', key=f'show_{subject}')
             for qid, q, reason, analysis, d, is_mastered in rows:
@@ -704,8 +755,9 @@ def page_plan(user):
             [plan],
             []
         )
-        st.download_button('📥 导出计划（PDF打印）', data=html.encode('utf-8'),
-                          file_name=f'{user}_学习计划.html', mime='text/html')
+        pdf_bytes = generate_pdf(f'{user} {mode}', plan.split('\n'))
+        st.download_button('📥 导出计划（PDF打印）', data=pdf_bytes,
+                          file_name=f'{user}_学习计划_{date.today()}.pdf', mime='application/pdf')
 
     st.markdown('---')
     st.markdown('### 📚 历史计划')
@@ -760,8 +812,9 @@ def page_daily_words(user):
         [content],
         []
     )
-    st.download_button('📥 导出今日内容（PDF打印）', data=html.encode('utf-8'),
-                      file_name=f'{user}_今日学习_{date.today()}.html', mime='text/html')
+    pdf_bytes = generate_pdf(f'{user} 今日学习（{grade}）', content.split('\n'))
+    st.download_button('📥 导出今日内容（PDF打印）', data=pdf_bytes,
+                      file_name=f'{user}_今日学习_{date.today()}.pdf', mime='application/pdf')
 
 # ========== 页面：今日复习（艾宾浩斯） ==========
 def page_review(user):
@@ -826,17 +879,15 @@ def page_review(user):
     # PDF 导出
     st.markdown('---')
     if all_questions:
-        html = generate_print_html(
-            f'{user} 今日艾宾浩斯复习（{date.today()}）',
-            all_questions,
-            all_answers
-        )
+        review_text = '\n'.join([f'Q{i+1}: {q}' for i, q in enumerate(all_questions)])
+        answer_text = '\n'.join([f'A{i+1}: {a}' for i, a in enumerate(all_answers)])
+        content_lines = (['【题目】', ''] + all_questions + ['', '【答案】', ''] + all_answers)
+        pdf_bytes = generate_pdf(f'{user} 今日艾宾浩斯复习（{date.today()}）', content_lines)
         st.download_button('📥 导出今日复习题（PDF打印）',
-                          data=html.encode('utf-8'),
-                          file_name=f'{user}_今日复习_{date.today()}.html',
-                          mime='text/html',
+                          data=pdf_bytes,
+                          file_name=f'{user}_今日复习_{date.today()}.pdf',
+                          mime='application/pdf',
                           use_container_width=True)
-        st.caption('💡 下载后用浏览器打开 → 打印 → 另存为PDF，题目和答案分页')
 
 # ========== 页面：家长总览 ==========
 def page_parent():
