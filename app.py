@@ -98,6 +98,42 @@ hr { margin:16px 0 !important; border:none !important; border-top:1px solid #E5E
 .calendar-day { text-align:center; padding:8px 0; font-size:14px; color:#111827; }
 div[data-testid="stSidebar"] { display:none !important; }
 
+/*=== 动画 ===*/
+@keyframes fadeUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
+@keyframes pulse { 0%,100% { transform:scale(1); } 50% { transform:scale(1.05); } }
+@keyframes gradientText {
+    0% { background-position:0% 50%; }
+    50% { background-position:100% 50%; }
+    100% { background-position:0% 50%; }
+}
+.main .block-container { animation:fadeUp 0.4s ease-out; }
+.stat-card { animation:fadeUp 0.5s ease-out; }
+.stat-card:nth-child(2) { animation-delay:0.1s; }
+.stat-card:nth-child(3) { animation-delay:0.2s; }
+.title-main {
+    background:linear-gradient(135deg,#2563EB,#7C3AED,#2563EB);
+    background-size:200% 200%;
+    background-clip:text;
+    -webkit-background-clip:text;
+    -webkit-text-fill-color:transparent;
+    animation:gradientText 4s ease infinite;
+}
+
+/*=== 好词好句卡片 ===*/
+.daily-words {
+    background: linear-gradient(135deg, #EFF6FF 0%, #FDF2F8 100%);
+    border-radius: 16px;
+    padding: 18px 16px;
+    border: 1px solid #E0E7FF;
+    line-height: 1.8;
+    font-size: 15px;
+    color: #111827 !important;
+    animation: fadeUp 0.6s ease-out;
+    box-shadow: 0 2px 8px rgba(37,99,235,0.06);
+}
+.daily-words strong, .daily-words b { color: #2563EB; }
+.daily-words em { color: #7C3AED; font-style: normal; font-weight: 600; }
+
 @media (max-width:640px) {
     .main .block-container { padding:0.8rem 0.6rem !important; }
     .title-main { font-size:18px; }
@@ -467,7 +503,7 @@ def page_home(user):
     st.markdown('### 💡 今日好词好句')
     with st.spinner('正在生成今日中英双语内容...'):
         result = get_daily_words(grade)
-        st.info(result)
+        st.markdown(f'<div class="daily-words">{result}</div>', unsafe_allow_html=True)
 
         # 英语听力播放
         pairs = extract_english_audio_pairs(result)
