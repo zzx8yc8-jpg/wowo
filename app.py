@@ -38,7 +38,18 @@ st.markdown("""
 .stApp {
     background: #F0F2F5;
     font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    color: #1E293B !important;
 }
+/* 全局文字颜色修复 — 白底黑字 */
+.stApp, .main, .block-container, p, span, div, li, label {
+    color: #1E293B !important;
+}
+.stMarkdown, .stText, .stTextInput, .stSelectbox, .stTextArea {
+    color: #1E293B !important;
+}
+/* info/warning/error 消息框 */
+.stAlert { color: #1E293B !important; }
+.stAlert p { color: #1E293B !important; }
 
 /* 主内容区域 — 干净白底卡片 */
 .main .block-container {
@@ -109,7 +120,7 @@ st.markdown("""
     border-radius: 14px;
     font-size: 0.75rem;
     font-weight: 500;
-    color: #94A3B8;
+    color: #64748B;
     transition: all 0.2s;
     cursor: pointer;
     user-select: none;
@@ -310,26 +321,32 @@ def get_doubao():
         return None, 'DOUBAO_API_KEY 含中文字符，请填写有效的 Key'
     return OpenAI(api_key=key, base_url='https://ark.cn-beijing.volces.com/api/v3'), None
 
-# ========== 豆包图片分析 ==========
+# ========== 题目分析及讲解（豆包视觉） ==========
 def doubao_analyze_image(image_bytes, child_name, grade):
     client, err = get_doubao()
     if err:
-        return err, '未分类'
+        return err, '未分类', True
     if not client:
-        return 'DOUBAO_API_KEY 未配置', '未分类'
+        return 'DOUBAO_API_KEY 未配置', '未分类', True
     img_b64 = base64.b64encode(image_bytes).decode('utf-8')
     prompt = (
-        f'你是一位超有耐心的老师，请看这道题的图片，完成以下任务：\n'
-        f'1. 第一行必须：科目：语文 或 科目：数学 或 科目：英语\n'
-        f'2. 识别题目完整内容\n'
-        f'3. 用{child_name}能听懂的话分析为什么容易做错\n'
-        f'4. 给出解题思路（用很多emoji 😊）\n'
-        f'5. 给{child_name}一句鼓励的话\n'
-        f'语言风格适合{grade}学生，超级活泼有趣！'
+        f'你是一位极其认真负责的批改老师，请严格完成以下任务：\n\n'
+        f'1. 第一行输出：**科目：** 语文 或 数学 或 英语（三选一）\n'
+        f'2. 第二行输出：**正误：** 正确 或 错误（仔细判断答案是否正确，只有完全正确才算正确）\n'
+        f'3. 第三行输出：**题目：** （抄写原题内容）\n'
+        f'4. 然后空一行，输出 **讲解：** （用{child_name}能听懂的话详细讲解这道题，不管对错都要讲解）\n'
+        f'   - 如果做对了：表扬并解释为什么对，巩固知识点\n'
+        f'   - 如果做错了：指出错在哪里、为什么错、正确答案是什么、解题思路\n'
+        f'5. 最后输出一句给{child_name}的鼓励语，多用emoji\n\n'
+        f'注意事项：\n'
+        f'- {child_name}是{grade}学生，语言要适合这个年龄段\n'
+        f'- 批改要严格，不能放过任何小错误\n'
+        f'- 讲解要详细，让{child_name}能听懂并学会\n'
+        f'- 多用🌟🎉💪😊等emoji'
     )
     try:
         resp = client.chat.completions.create(
-            model=st.secrets.get('DOUBAO_VISION_MODEL', 'doubao-1-5-vision-pro-32k'),
+            model=st.secrets.get('DOUBAO_VISION_MODEL', 'Doubao-Seed-2.0-lite'),
             messages=[{
                 'role': 'user',
                 'content': [
@@ -337,18 +354,23 @@ def doubao_analyze_image(image_bytes, child_name, grade):
                     {'type': 'text', 'text': prompt}
                 ]
             }],
-            max_tokens=900
+            max_tokens=1200
         )
         content = resp.choices[0].message.content
+        # 提取科目
         subject = '未分类'
         for s in SUBJECTS:
             if f'科目：{s}' in content or f'科目:{s}' in content:
                 subject = s
                 break
-        return content, subject
+        # 提取正误（默认错误，安全起见）
+        is_correct = False
+        if '正误：正确' in content or '正误:正确' in content:
+            is_correct = True
+        return content, subject, is_correct
     except Exception as e:
         err_msg = str(e).encode('ascii', errors='replace').decode('ascii')
-        return f'豆包分析失败: {err_msg}', '未分类'
+        return f'分析失败: {err_msg}', '未分类', True
 
 # ========== DeepSeek 文本生成 ==========
 def deepseek_gen(prompt, max_tokens=700):
@@ -562,6 +584,7 @@ def page_login():
                 st.session_state.user = user
                 st.session_state.auto_analysis = ''
                 st.session_state.auto_subject = '数学'
+                st.session_state.auto_is_correct = False
                 st.session_state.auto_img = ''
                 st.rerun()
             else:
@@ -635,41 +658,57 @@ def page_upload(user):
     st.markdown('<div class="title-main">📸 拍照录错题</div>', unsafe_allow_html=True)
     st.markdown('<p style="text-align:center;color:#888;">🤖 豆包 Vision 自动识别 + 分析错因</p>', unsafe_allow_html=True)
 
-    uploaded = st.file_uploader('📱 拍照或选择图片', type=['jpg', 'jpeg', 'png'])
+    uploaded = st.file_uploader('📱 拍照上传作业', type=['jpg', 'jpeg', 'png'])
     if uploaded:
-        st.image(Image.open(uploaded), caption='📷 上传的题目', use_container_width=True)
-        if st.button('🤖 豆包识别并分析 🚀'):
-            with st.spinner('豆包正在看题目...'):
-                analysis, subject = doubao_analyze_image(uploaded.getvalue(), user, grade)
+        st.image(Image.open(uploaded), caption='📷 上传的作业', use_container_width=True)
+        if st.button('🤖 题目分析及讲解 🚀'):
+            with st.spinner('正在批改和分析...'):
+                analysis, subject, is_correct = doubao_analyze_image(uploaded.getvalue(), user, grade)
                 st.session_state.auto_analysis = analysis
                 st.session_state.auto_subject = subject
+                st.session_state.auto_is_correct = is_correct
                 st.session_state.auto_img = base64.b64encode(uploaded.getvalue()).decode('utf-8')
-            st.success(f'✅ 识别完成，科目：{subject}')
 
     st.markdown('---')
-    analysis_text = st.text_area('✏️ 分析结果（可修改）', value=st.session_state.get('auto_analysis', ''), height=200)
-    subj_val = st.session_state.get('auto_subject', '数学')
-    idx = SUBJECTS.index(subj_val) if subj_val in SUBJECTS else 0
-    col1, col2 = st.columns(2)
-    with col1:
-        subject = st.selectbox('📚 科目', SUBJECTS, index=idx)
-    with col2:
-        reason = st.text_input('💭 错误原因（选填）', placeholder='粗心/不懂知识点...')
-    if st.button('💾 保存到错题本'):
-        if not analysis_text.strip():
-            st.warning('请先上传图片并识别～')
+    analysis_text = st.session_state.get('auto_analysis', '')
+    if analysis_text:
+        is_correct = st.session_state.get('auto_is_correct', False)
+        subj_val = st.session_state.get('auto_subject', '数学')
+
+        # 显示对错结果
+        if is_correct:
+            st.success('🎉 这道题做对了！真棒！')
         else:
-            qid = db.insert(
-                'INSERT INTO wrong_questions(child_name,subject,question,wrong_reason,ai_analysis,image_data,created_date) VALUES(?,?,?,?,?,?,?)',
-                (user, subject, analysis_text, reason, analysis_text, st.session_state.get('auto_img', ''), str(date.today()))
-            )
-            # 创建艾宾浩斯复习计划
-            create_review_schedule(qid, user, subject, str(date.today()))
-            st.success(f'✅ 已保存！已加入艾宾浩斯复习计划！')
-            st.balloons()
-            st.session_state.auto_analysis = ''
-            st.session_state.auto_subject = '数学'
-            st.session_state.auto_img = ''
+            st.error('❌ 这道题做错了，一起来看看怎么改正吧')
+
+        # 显示分析内容
+        st.markdown('### 📝 题目分析及讲解')
+        st.markdown(analysis_text)
+
+        # 只有做错的题才显示保存按钮
+        if not is_correct:
+            st.markdown('---')
+            idx = SUBJECTS.index(subj_val) if subj_val in SUBJECTS else 0
+            col1, col2 = st.columns(2)
+            with col1:
+                subject = st.selectbox('📚 科目', SUBJECTS, index=idx)
+            with col2:
+                reason = st.text_input('💭 错误原因（选填）', placeholder='粗心/不懂知识点...')
+            if st.button('💾 保存到错题本（加入艾宾浩斯复习）'):
+                qid = db.insert(
+                    'INSERT INTO wrong_questions(child_name,subject,question,wrong_reason,ai_analysis,image_data,created_date) VALUES(?,?,?,?,?,?,?)',
+                    (user, subject, analysis_text, reason, analysis_text, st.session_state.get('auto_img', ''), str(date.today()))
+                )
+                create_review_schedule(qid, user, subject, str(date.today()))
+                st.success(f'✅ 已保存到错题本！已加入艾宾浩斯复习计划！')
+                st.balloons()
+                st.session_state.auto_analysis = ''
+                st.session_state.auto_subject = '数学'
+                st.session_state.auto_is_correct = False
+                st.session_state.auto_img = ''
+        else:
+            st.markdown('---')
+            st.markdown('💡 做对的题目不需要存入错题本，继续保持！🌟')
 
 # ========== 页面：错题本 ==========
 def page_wrong_list(user):
@@ -1026,9 +1065,10 @@ def main_app():
 if 'logged_in' not in st.session_state:
     st.session_state.logged_in     = False
     st.session_state.user          = ''
-    st.session_state.auto_analysis = ''
-    st.session_state.auto_subject  = '数学'
-    st.session_state.auto_img      = ''
+    st.session_state.auto_analysis   = ''
+    st.session_state.auto_subject    = '数学'
+    st.session_state.auto_is_correct = False
+    st.session_state.auto_img        = ''
 
 if not st.session_state.logged_in:
     page_login()
