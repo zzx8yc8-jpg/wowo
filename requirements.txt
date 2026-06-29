@@ -4,5 +4,3 @@ Pillow>=10.3.0
 pandas>=2.0.0
 plotly>=5.0.0
 gtts>=2.5.0
-# mysql-connector-python (可选的, 用于 TiDB 云端存储)
-# mysql-connector-python>=9.7.0
