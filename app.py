@@ -53,24 +53,41 @@ p, span, li, label, .stMarkdown, .stText { color: #000000 !important; font-size:
 .stAlert, .stAlert p, .stAlert div { color: #000000 !important; font-size: 16px !important; font-weight: 500 !important; }
 small, .caption { font-size: 15px !important; color: #000000 !important; font-weight: 500 !important; }
 
-/*=== 输入框 — 强制黑色文字 ===*/
-.stTextInput>div>input, .stSelectbox>div>div, .stTextArea textarea,
-.stTextInput input, .stSelectbox input, .stTextArea textarea,
-.stTextInput input:focus, .stSelectbox input:focus, .stTextArea textarea:focus {
-    background: #FFFFFF !important;
-    color: #000000 !important;
-    -webkit-text-fill-color: #000000 !important;
+/*=== 输入框 & 下拉框 — 强制黑色文字 ===*/
+.stTextInput>div>input, .stTextArea textarea {
+    background: #FFFFFF !important; color: #000000 !important;
     font-size: 17px !important; font-weight: 500 !important;
     border: 2px solid #9CA3AF !important; border-radius: 12px !important; padding: 10px 14px !important;
 }
-.stTextInput input::placeholder, .stTextArea textarea::placeholder {
-    color: #6B7280 !important; -webkit-text-fill-color: #6B7280 !important;
-}
-.stTextInput>div>input:focus, .stSelectbox>div>div:focus, .stTextArea textarea:focus {
+.stTextInput>div>input:focus, .stTextArea textarea:focus {
     border-color: #2563EB !important; box-shadow: 0 0 0 3px rgba(37,99,235,0.15) !important;
 }
-.stTextInput label, .stSelectbox label, .stTextArea label {
+.stTextInput label, .stTextArea label {
     color: #000000 !important; font-weight: 700 !important; font-size: 16px !important;
+}
+/* 下拉框 selectbox — 所有文字样式全覆盖 */
+.stSelectbox, .stSelectbox > div, .stSelectbox div[data-baseweb="select"] {
+    color: #000000 !important;
+}
+.stSelectbox div[data-baseweb="select"] > div {
+    background: #FFFFFF !important; color: #000000 !important;
+    border: 2px solid #9CA3AF !important; border-radius: 12px !important;
+    font-size: 17px !important; font-weight: 500 !important;
+}
+.stSelectbox div[data-baseweb="select"] span, .stSelectbox div[role="listbox"] span {
+    color: #000000 !important;
+}
+.stSelectbox input, .stSelectbox input:focus {
+    color: #000000 !important; -webkit-text-fill-color: #000000 !important;
+}
+.stSelectbox div[role="listbox"] {
+    background: #FFFFFF !important;
+}
+.stSelectbox div[role="option"] {
+    color: #000000 !important; background: #FFFFFF !important;
+}
+.stSelectbox div[role="option"]:hover {
+    background: #F3F4F6 !important;
 }
 
 /*=== 顶部导航 ===*/
@@ -413,33 +430,45 @@ def generate_pdf(title, content_lines):
     c = canvas.Canvas(buf, pagesize=A4)
     width, height = A4
 
-    c.setFont('STSong-Light', 16)
-    c.drawString(30*mm, height - 25*mm, title)
-    c.setFont('STSong-Light', 10)
-    c.drawString(30*mm, height - 33*mm, f'生成：{datetime.now().strftime("%Y年%m月%d日 %H:%M")}')
-    c.line(25*mm, height - 38*mm, width - 25*mm, height - 38*mm)
+    margin_left = 25*mm
+    margin_right = 25*mm
+    usable_width = width - margin_left - margin_right
+    # STSong-Light 12pt: 每个中文字约 12pt 宽
+    chars_per_line = int(usable_width / 12) - 2
 
-    c.setFont('STSong-Light', 12)
-    y = height - 48*mm
-    line_h = 7*mm
+    def draw_page_title():
+        c.setFont('STSong-Light', 14)
+        c.drawString(margin_left, height - 20*mm, title)
+        c.setFont('STSong-Light', 9)
+        c.drawString(margin_left, height - 27*mm, f'生成：{datetime.now().strftime("%Y年%m月%d日 %H:%M")}')
+        c.line(margin_left, height - 31*mm, width - margin_right, height - 31*mm)
+
+    draw_page_title()
+    c.setFont('STSong-Light', 11)
+    y = height - 40*mm
+    line_h = 5.5*mm
+
     for line in content_lines:
         if not line.strip():
-            y -= line_h * 0.5
+            y -= line_h * 0.4
             continue
-        while len(line) > 55:
-            c.drawString(30*mm, y, line[:55])
-            line = line[55:]
+        text = line.strip()
+        while len(text) > chars_per_line:
+            c.drawString(margin_left, y, text[:chars_per_line])
+            text = text[chars_per_line:]
             y -= line_h
-            if y < 20*mm:
+            if y < 18*mm:
                 c.showPage()
-                c.setFont('STSong-Light', 12)
-                y = height - 25*mm
-        c.drawString(30*mm, y, line)
+                draw_page_title()
+                c.setFont('STSong-Light', 11)
+                y = height - 40*mm
+        c.drawString(margin_left, y, text)
         y -= line_h
-        if y < 20*mm:
+        if y < 18*mm:
             c.showPage()
-            c.setFont('STSong-Light', 12)
-            y = height - 25*mm
+            draw_page_title()
+            c.setFont('STSong-Light', 11)
+            y = height - 40*mm
     c.save()
     return buf.getvalue()
 
