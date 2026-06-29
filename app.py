@@ -404,7 +404,7 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import mm
 
-pdfmetrics.registerFont(UnicodeCIDFont('STHeiti-Regular'))
+pdfmetrics.registerFont(UnicodeCIDFont('STSong-Light'))
 
 def generate_pdf(title, content_lines):
     """生成 A4 排版 PDF，返回 bytes"""
@@ -413,13 +413,13 @@ def generate_pdf(title, content_lines):
     c = canvas.Canvas(buf, pagesize=A4)
     width, height = A4
 
-    c.setFont('STHeiti-Regular', 16)
+    c.setFont('STSong-Light', 16)
     c.drawString(30*mm, height - 25*mm, title)
-    c.setFont('STHeiti-Regular', 10)
+    c.setFont('STSong-Light', 10)
     c.drawString(30*mm, height - 33*mm, f'生成：{datetime.now().strftime("%Y年%m月%d日 %H:%M")}')
     c.line(25*mm, height - 38*mm, width - 25*mm, height - 38*mm)
 
-    c.setFont('STHeiti-Regular', 12)
+    c.setFont('STSong-Light', 12)
     y = height - 48*mm
     line_h = 7*mm
     for line in content_lines:
@@ -432,13 +432,13 @@ def generate_pdf(title, content_lines):
             y -= line_h
             if y < 20*mm:
                 c.showPage()
-                c.setFont('STHeiti-Regular', 12)
+                c.setFont('STSong-Light', 12)
                 y = height - 25*mm
         c.drawString(30*mm, y, line)
         y -= line_h
         if y < 20*mm:
             c.showPage()
-            c.setFont('STHeiti-Regular', 12)
+            c.setFont('STSong-Light', 12)
             y = height - 25*mm
     c.save()
     return buf.getvalue()
