@@ -31,128 +31,77 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# ========== 浅色大字体 UI ==========
+# ========== 自适应浅色 + 现代蓝调 ==========
 st.markdown("""
 <style>
-/*=== 强制浅色模式，所有背景纯白 ===*/
-html, body, .stApp, #root {
-    color: #1E293B !important;
-    background-color: #F1F5F9 !important;
+/*=== 强制浅色（覆盖手机暗黑模式）===*/
+@media (prefers-color-scheme: dark) {
+    html, body, .stApp, .stApp > div, #root, .main, .block-container {
+        background-color: #F1F5F9 !important; color: #111827 !important;
+    }
+    .stApp { background-color: #F1F5F9 !important; }
+    .main .block-container { background: #FFFFFF !important; }
+}
+html, body, .stApp, .stApp > div, #root {
+    background-color: #F1F5F9 !important; color: #111827 !important;
 }
 .stApp { background-color: #F1F5F9 !important; }
+.main .block-container { background: #FFFFFF !important; border-radius: 20px 20px 0 0; padding: 1.2rem 1rem !important; }
 
-/* 主内容卡片 — 纯白 */
-.main .block-container {
-    background: #FFFFFF !important;
-    border-radius: 20px 20px 0 0;
-    padding: 1.2rem 1rem !important;
-}
+/*=== 文字 ===*/
+p, span, li, label, .stMarkdown, .stText { color: #111827 !important; font-size: 16px !important; }
+.stAlert, .stAlert p, .stAlert div { color: #111827 !important; font-size: 15px !important; }
+small, .caption { font-size: 14px !important; color: #6B7280 !important; }
 
-/*=== 所有文字深色大号 ===*/
-p, span, li, label, .stMarkdown, .stText, .st-bw, div:not([class*="nav"]) {
-    color: #1E293B !important;
-    font-size: 16px !important;
-}
-.stAlert, .stAlert p, .stAlert div { color: #1E293B !important; font-size: 15px !important; }
-small, .caption, .st-at { font-size: 14px !important; color: #64748B !important; }
-
-/*=== 输入框 — 白底黑字 ===*/
+/*=== 输入框 ===*/
 .stTextInput>div>input, .stSelectbox>div>div, .stTextArea textarea {
-    background-color: #FFFFFF !important;
-    color: #1E293B !important;
-    font-size: 16px !important;
-    border: 2px solid #E2E8F0 !important;
-    border-radius: 12px !important;
-    padding: 10px 14px !important;
+    background: #FFFFFF !important; color: #111827 !important;
+    font-size: 16px !important; border: 1.5px solid #D1D5DB !important;
+    border-radius: 12px !important; padding: 10px 14px !important;
 }
 .stTextInput>div>input:focus, .stSelectbox>div>div:focus, .stTextArea textarea:focus {
-    border-color: #4F46E5 !important;
-    box-shadow: 0 0 0 3px rgba(79,70,229,0.15) !important;
+    border-color: #2563EB !important; box-shadow: 0 0 0 3px rgba(37,99,235,0.12) !important;
 }
 .stTextInput label, .stSelectbox label, .stTextArea label {
-    color: #1E293B !important; font-weight: 600 !important; font-size: 15px !important;
+    color: #111827 !important; font-weight: 600 !important; font-size: 15px !important;
 }
 
-/*=== 顶部导航栏 ===*/
-.top-nav {
-    background: linear-gradient(135deg, #4F46E5, #7C3AED);
-    padding: 0.7rem 1rem;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    border-radius: 0 0 18px 18px;
-    box-shadow: 0 2px 12px rgba(79,70,229,0.2);
-}
+/*=== 顶部导航 — 纯蓝 ===*/
+.top-nav { background: #2563EB; padding: 0.7rem 1rem; display: flex; align-items: center; justify-content: space-between; border-radius: 0 0 18px 18px; box-shadow: 0 1px 6px rgba(37,99,235,0.15); }
 .top-nav-user { color:#fff; font-size:17px; font-weight:600; display:flex; align-items:center; gap:8px; }
 .top-nav-user small { font-size:13px; opacity:0.85; color:rgba(255,255,255,0.85) !important; }
 
-/*=== 顶部 Tab 导航 ===*/
-.nav-tab-active {
-    text-align: center; background: #EEF2FF; border-radius: 14px;
-    padding: 10px 4px; box-shadow: 0 2px 8px rgba(79,70,229,0.1);
-}
-.nav-tab-active div:first-child { font-size: 22px; }
-.nav-tab-active div:last-child { font-size: 13px; font-weight: 700; color: #4F46E5; }
+/*=== Tab 导航 — 清爽 ===*/
+.nav-tab-active { text-align:center; background:#EFF6FF; border-radius:14px; padding:10px 4px; }
+.nav-tab-active div:first-child { font-size:22px; }
+.nav-tab-active div:last-child { font-size:13px; font-weight:700; color:#2563EB; }
+.nav-tab-inactive button { background:transparent !important; color:#9CA3AF !important; box-shadow:none !important; font-size:13px !important; padding:10px 4px !important; border:none !important; border-radius:14px !important; }
+.nav-tab-inactive button:hover { background:#F3F4F6 !important; color:#2563EB !important; }
 
-/* 非活跃 Tab — 去掉紫色按钮, 显示为纯文字 */
-.nav-tab-inactive button {
-    background: transparent !important;
-    color: #94A3B8 !important;
-    box-shadow: none !important;
-    font-size: 13px !important;
-    padding: 10px 4px !important;
-    border: none !important;
-}
-.nav-tab-inactive button:hover { color: #4F46E5 !important; background: #F8FAFC !important; }
+/*=== 按钮 ===*/
+.stButton>button { border-radius:14px !important; font-weight:600 !important; font-size:16px !important; background:#2563EB !important; color:#fff !important; border:none !important; padding:10px 16px !important; width:100% !important; box-shadow:0 1px 4px rgba(37,99,235,0.15) !important; }
+.stButton>button:hover { background:#1D4ED8 !important; }
 
-/*=== 通用按钮 ===*/
-.stButton>button {
-    border-radius: 14px !important;
-    font-weight: 600 !important;
-    font-size: 16px !important;
-    background: #4F46E5 !important;
-    color: #fff !important;
-    border: none !important;
-    padding: 10px 16px !important;
-    width: 100% !important;
-    box-shadow: 0 2px 8px rgba(79,70,229,0.2) !important;
-}
-.stButton>button:hover { background: #4338CA !important; box-shadow: 0 4px 14px rgba(79,70,229,0.3) !important; }
+/*=== 标题 & 卡片 ===*/
+.title-main { font-size:20px; font-weight:800; color:#111827; text-align:center; padding:6px 0 10px 0; }
+.stat-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:12px 0; }
+.stat-card { background:#F9FAFB; border-radius:14px; padding:14px 10px; text-align:center; border:1px solid #E5E7EB; }
+.stat-number { font-size:26px; font-weight:800; color:#2563EB; }
+.stat-label { font-size:14px; color:#6B7280; margin-top:2px; }
 
-/*=== 标题 ===*/
-.title-main { font-size: 20px; font-weight: 800; color: #1E293B; text-align: center; padding: 6px 0 10px 0; }
+/*=== 其他 ===*/
+div[data-testid="stAlertContainer"] { border-radius:14px !important; }
+hr { margin:16px 0 !important; border:none !important; border-top:1px solid #E5E7EB !important; }
+.streamlit-expanderHeader { border-radius:12px !important; background:#F9FAFB !important; font-weight:600 !important; font-size:15px !important; padding:10px 14px !important; border:1px solid #E5E7EB !important; }
+.streamlit-expanderContent { border:1px solid #E5E7EB !important; border-top:none !important; border-radius:0 0 12px 12px !important; padding:14px !important; }
+.calendar-header { text-align:center; font-weight:600; font-size:14px; color:#6B7280; padding:6px 0; }
+.calendar-day { text-align:center; padding:8px 0; font-size:14px; color:#111827; }
+div[data-testid="stSidebar"] { display:none !important; }
 
-/*=== 统计卡片 ===*/
-.stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 12px 0; }
-.stat-card { background: #F8FAFC; border-radius: 16px; padding: 14px 10px; text-align: center; border: 1px solid #E2E8F0; }
-.stat-number { font-size: 26px; font-weight: 800; color: #4F46E5; }
-.stat-label { font-size: 14px; color: #475569; margin-top: 2px; }
-
-/*=== 信息框 / 分割线 / Expander ===*/
-div[data-testid="stAlertContainer"] { border-radius: 14px !important; }
-hr { margin: 16px 0 !important; border: none !important; border-top: 1px solid #E2E8F0 !important; }
-.streamlit-expanderHeader {
-    border-radius: 12px !important; background: #F8FAFC !important;
-    font-weight: 600 !important; font-size: 15px !important; padding: 10px 14px !important;
-    border: 1px solid #E2E8F0 !important;
-}
-.streamlit-expanderContent {
-    border: 1px solid #E2E8F0 !important; border-top: none !important;
-    border-radius: 0 0 12px 12px !important; padding: 14px !important;
-}
-
-/*=== 日历 & 侧边栏 ===*/
-.calendar-header { text-align: center; font-weight: 600; font-size: 14px; color: #475569; padding: 6px 0; }
-.calendar-day { text-align: center; padding: 8px 0; font-size: 14px; color: #1E293B; }
-div[data-testid="stSidebar"] { display: none !important; }
-
-/*=== 移动端适配 ===*/
-@media (max-width: 640px) {
-    .main .block-container { padding: 0.8rem 0.6rem !important; }
-    .title-main { font-size: 18px; }
-    .stat-number { font-size: 22px; }
-    p, span, li, label, .stMarkdown, .stText { font-size: 15px !important; }
-    .stButton>button { font-size: 15px !important; padding: 8px 12px !important; }
+@media (max-width:640px) {
+    .main .block-container { padding:0.8rem 0.6rem !important; }
+    .title-main { font-size:18px; }
+    .stat-number { font-size:22px; }
 }
 </style>
 """, unsafe_allow_html=True)
@@ -478,7 +427,7 @@ def page_login():
 def page_home(user):
     grade = CHILDREN.get(user, {}).get('grade', '小学')
     st.markdown(f'<div class="title-main">🌈 {user} 的学习空间</div>', unsafe_allow_html=True)
-    st.markdown(f'<p style="text-align:center;color:#888;">📚 {grade}</p>', unsafe_allow_html=True)
+    st.markdown(f'<p style="text-align:center;color: #6B7280;">📚 {grade}</p>', unsafe_allow_html=True)
 
     today = str(date.today())
     if user in CHILDREN:
@@ -532,7 +481,7 @@ def page_home(user):
                     with col1:
                         st.markdown(f'{text}')
                         if trans:
-                            st.markdown(f'<small style="color:#888;">{trans}</small>', unsafe_allow_html=True)
+                            st.markdown(f'<small style="color: #6B7280;">{trans}</small>', unsafe_allow_html=True)
                     with col2:
                         st.audio(audio_bytes, format='audio/mp3')
 
@@ -540,7 +489,7 @@ def page_home(user):
 def page_upload(user):
     grade = CHILDREN.get(user, {}).get('grade', '小学')
     st.markdown('<div class="title-main">📸 拍照录错题</div>', unsafe_allow_html=True)
-    st.markdown('<p style="text-align:center;color:#888;">🤖 豆包 Vision 自动识别 + 分析错因</p>', unsafe_allow_html=True)
+    st.markdown('<p style="text-align:center;color: #6B7280;">🤖 豆包 Vision 自动识别 + 分析错因</p>', unsafe_allow_html=True)
 
     uploaded = st.file_uploader('📱 拍照上传作业', type=['jpg', 'jpeg', 'png'])
     if uploaded:
@@ -742,7 +691,7 @@ def page_daily_words(user):
                     icon = '🔤' if ptype == 'word' else '💬' if ptype == 'sentence' else '🎯'
                     st.markdown(f'{icon} **{text}**')
                     if trans:
-                        st.markdown(f'<small style="color:#888;">{trans}</small>', unsafe_allow_html=True)
+                        st.markdown(f'<small style="color: #6B7280;">{trans}</small>', unsafe_allow_html=True)
                 with c2:
                     st.audio(audio_bytes, format='audio/mp3')
     else:
@@ -853,7 +802,7 @@ def page_parent():
         status   = '✅ 已打卡' if checked else '❌ 未打卡'
         st.markdown(
             f'<div style="background:linear-gradient(135deg,{color}33,{color}11);border-left:4px solid {color};border-radius:15px;padding:0.8rem 1rem;margin-bottom:0.5rem;">'
-            f'<h3 style="margin:0;">{child} <small style="color:#888;">{info["grade"]}</small></h3>'
+            f'<h3 style="margin:0;">{child} <small style="color: #6B7280;">{info["grade"]}</small></h3>'
             f'📝 错题 {total} 题 | ✅ 掌握 {mastered} 题 | {status}'
             f'</div>',
             unsafe_allow_html=True
