@@ -31,243 +31,88 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# ========== 高端教培风格 CSS ==========
+# ========== 清爽可读 CSS ==========
 st.markdown("""
 <style>
-/* ---- 全局 ---- */
-.stApp {
-    background: #F0F2F5;
+/* 全局：深色文字 + 浅灰背景 */
+html, body, .stApp {
+    color: #1E293B !important;
+    background: #F1F5F9 !important;
     font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
-    color: #1E293B !important;
 }
-/* 全局文字颜色修复 — 白底黑字 */
-.stApp, .main, .block-container, p, span, div, li, label {
-    color: #1E293B !important;
-}
-.stMarkdown, .stText, .stTextInput, .stSelectbox, .stTextArea {
-    color: #1E293B !important;
-}
-/* info/warning/error 消息框 */
-.stAlert { color: #1E293B !important; }
-.stAlert p { color: #1E293B !important; }
 
-/* 主内容区域 — 干净白底卡片 */
+/* 主内容区域 — 纯白背景 */
 .main .block-container {
     background: #FFFFFF;
-    border-radius: 24px 24px 0 0;
-    padding: 1.5rem 1.2rem 2rem 1.2rem;
-    margin: 0;
-    box-shadow: 0 -2px 20px rgba(0,0,0,0.04);
-    min-height: calc(100vh - 60px);
+    border-radius: 20px 20px 0 0;
+    padding: 1rem 1rem 1.5rem 1rem;
+    min-height: calc(100vh - 56px);
 }
 
-/* ---- 顶部导航栏 ---- */
+/* 所有文字强制深色 */
+p, span, li, label, div, .stMarkdown, .stText { color: #1E293B !important; }
+.stAlert, .stAlert p { color: #1E293B !important; }
+.stTextInput>div>input, .stSelectbox>div>div, .stTextArea textarea {
+    color: #1E293B !important; border-color: #CBD5E1 !important;
+}
+
+/* 顶部导航 */
 .top-nav {
-    background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);
-    padding: 0.6rem 0.8rem;
+    background: linear-gradient(135deg, #4F46E5, #7C3AED);
+    padding: 0.5rem 0.8rem;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    border-radius: 0 0 20px 20px;
-    box-shadow: 0 4px 20px rgba(79,70,229,0.25);
-    position: sticky;
-    top: 0;
-    z-index: 100;
+    border-radius: 0 0 16px 16px;
+    box-shadow: 0 2px 10px rgba(79,70,229,0.2);
 }
-.top-nav-user {
-    color: #fff;
-    font-size: 0.9rem;
-    font-weight: 600;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-.top-nav-user small {
-    font-weight: 400;
-    opacity: 0.8;
-    font-size: 0.7rem;
-}
-.top-nav-logout {
-    background: rgba(255,255,255,0.15) !important;
-    border: 1px solid rgba(255,255,255,0.25) !important;
-    color: #fff !important;
-    border-radius: 20px !important;
-    padding: 0.2rem 0.8rem !important;
-    font-size: 0.75rem !important;
-    width: auto !important;
-    min-width: 0 !important;
-}
-.top-nav-logout:hover {
-    background: rgba(255,255,255,0.25) !important;
-}
+.top-nav-user { color:#fff; font-size:0.9rem; font-weight:600; display:flex; align-items:center; gap:6px; }
+.top-nav-user small { opacity:0.8; font-size:0.7rem; color:rgba(255,255,255,0.8) !important; }
 
-/* 顶部 Tab 导航 */
-.top-tabs {
-    display: flex;
-    gap: 4px;
-    padding: 0.8rem 0.2rem 0.2rem 0.2rem;
-    overflow-x: auto;
-    white-space: nowrap;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
+/* Tab 按钮 */
+.nav-tab-active {
+    text-align:center; background:#EEF2FF; border-radius:12px; padding:8px 4px;
+    box-shadow:0 2px 6px rgba(79,70,229,0.1);
 }
-.top-tabs::-webkit-scrollbar { display: none; }
-.tab-item {
-    flex: 1 0 auto;
-    min-width: 60px;
-    text-align: center;
-    padding: 8px 6px;
-    border-radius: 14px;
-    font-size: 0.75rem;
-    font-weight: 500;
-    color: #64748B;
-    transition: all 0.2s;
-    cursor: pointer;
-    user-select: none;
-    background: transparent;
-    border: none;
-    line-height: 1.3;
-}
-.tab-item .tab-icon { font-size: 1.3rem; display: block; margin-bottom: 2px; }
-.tab-item.active {
-    background: #EEF2FF;
-    color: #4F46E5;
-    font-weight: 700;
-    box-shadow: 0 2px 8px rgba(79,70,229,0.12);
-}
+.nav-tab-active div:first-child { font-size:1.2rem; }
+.nav-tab-active div:last-child { font-size:0.7rem; font-weight:700; color:#4F46E5; }
 
-/* ---- 标题 ---- */
-.title-main {
-    font-size: 1.4rem;
-    font-weight: 800;
-    color: #1E293B;
-    text-align: center;
-    padding: 0.4rem 0 0.8rem 0;
-    letter-spacing: 0.5px;
-}
+/* 标题 */
+.title-main { font-size:1.3rem; font-weight:800; color:#1E293B; text-align:center; padding:0.3rem 0; }
 
-/* ---- 按钮 ---- */
+/* 按钮 */
 .stButton>button {
-    border-radius: 14px !important;
-    font-weight: 600 !important;
-    font-size: 0.9rem !important;
-    border: none !important;
-    background: linear-gradient(135deg, #4F46E5, #7C3AED) !important;
-    color: white !important;
-    padding: 0.6rem 1.2rem !important;
-    width: 100% !important;
-    transition: all 0.2s ease !important;
-    box-shadow: 0 4px 12px rgba(79,70,229,0.2) !important;
+    border-radius:12px !important; font-weight:600 !important; font-size:0.9rem !important;
+    background:#4F46E5 !important; color:#fff !important; border:none !important;
+    padding:0.5rem 1rem !important; width:100% !important;
+    box-shadow:0 2px 6px rgba(79,70,229,0.2) !important;
 }
-.stButton>button:hover {
-    transform: translateY(-1px) !important;
-    box-shadow: 0 6px 20px rgba(79,70,229,0.3) !important;
-}
-.stButton>button:active {
-    transform: scale(0.97) !important;
-}
+.stButton>button:hover { background:#4338CA !important; }
 
-/* ---- 统计卡片 ---- */
-.stat-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
-    margin-bottom: 1rem;
-}
-.stat-card {
-    background: #FFFFFF;
-    border-radius: 18px;
-    padding: 1rem 0.8rem;
-    text-align: center;
-    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
-    border: 1px solid #F1F5F9;
-}
-.stat-number {
-    font-size: 1.8rem;
-    font-weight: 800;
-    color: #4F46E5;
-    line-height: 1.2;
-}
-.stat-label {
-    font-size: 0.78rem;
-    color: #64748B;
-    margin-top: 4px;
-}
+/* 统计卡片 */
+.stat-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:0.8rem; }
+.stat-card { background:#F8FAFC; border-radius:14px; padding:0.8rem; text-align:center; border:1px solid #E2E8F0; }
+.stat-number { font-size:1.5rem; font-weight:800; color:#4F46E5; }
+.stat-label { font-size:0.78rem; color:#475569; margin-top:2px; }
 
-/* ---- info 消息框 ---- */
-.stAlert {
-    border-radius: 16px !important;
-    border: none !important;
-}
-.stAlert [data-testid="stAlertContainer"] {
-    border-radius: 16px !important;
-}
+/* 分割线、消息框、Expander */
+hr { margin:0.8rem 0 !important; border-color:#E2E8F0 !important; }
+.stAlert { border-radius:12px !important; }
+.streamlit-expanderHeader { border-radius:12px !important; background:#F8FAFC !important; font-weight:600 !important; font-size:0.85rem !important; }
+.streamlit-expanderContent { border-radius:0 0 12px 12px !important; border:1px solid #E2E8F0 !important; border-top:none !important; }
 
-/* ---- 分割线 ---- */
-hr {
-    margin: 1rem 0 !important;
-    border-color: #F1F5F9 !important;
-}
+/* 侧边栏隐藏 */
+div[data-testid="stSidebar"] { display:none !important; }
 
-/* ---- 输入框 ---- */
-.stTextInput>div>input, .stSelectbox>div>div {
-    border-radius: 14px !important;
-    border: 1.5px solid #E2E8F0 !important;
-    font-size: 0.9rem !important;
-}
-.stTextInput>div>input:focus, .stSelectbox>div>div:focus {
-    border-color: #4F46E5 !important;
-    box-shadow: 0 0 0 3px rgba(79,70,229,0.1) !important;
-}
+/* 日历 */
+.calendar-header { text-align:center; font-weight:600; font-size:0.8rem; color:#475569; padding:4px 0; }
+.calendar-day { text-align:center; padding:5px 0; font-size:0.8rem; color:#1E293B; }
 
-/* ---- 侧边栏隐藏 ---- */
-div[data-testid="stSidebar"] { display: none !important; }
-
-/* ---- Download 按钮 ---- */
-.download-btn button {
-    background: linear-gradient(135deg, #10B981, #059669) !important;
-    box-shadow: 0 4px 12px rgba(16,185,129,0.2) !important;
-}
-
-/* ---- 打卡日历 ---- */
-.calendar-header {
-    text-align: center;
-    font-weight: 600;
-    font-size: 0.8rem;
-    color: #64748B;
-    padding: 4px 0;
-}
-.calendar-day {
-    text-align: center;
-    padding: 6px 0;
-    font-size: 0.8rem;
-    border-radius: 10px;
-}
-
-/* ---- expander ---- */
-.streamlit-expanderHeader {
-    border-radius: 14px !important;
-    background: #F8FAFC !important;
-    font-weight: 600 !important;
-    font-size: 0.85rem !important;
-}
-.streamlit-expanderContent {
-    border-radius: 0 0 14px 14px !important;
-    border: 1px solid #F1F5F9 !important;
-    border-top: none !important;
-}
-
-/* ---- TTS 音频 ---- */
-.stAudio { margin: 0.3rem 0; }
-
-/* ---- 移动端 ---- */
-@media (max-width: 640px) {
-    .main .block-container { padding: 1rem 0.8rem 1.5rem 0.8rem; }
-    .title-main { font-size: 1.15rem; }
-    .stat-number { font-size: 1.5rem; }
-    .tab-item { min-width: 52px; padding: 6px 4px; font-size: 0.7rem; }
-    .tab-item .tab-icon { font-size: 1.1rem; }
-    .top-nav { padding: 0.4rem 0.6rem; border-radius: 0 0 16px 16px; }
+/* 移动端 */
+@media (max-width:640px) {
+    .main .block-container { padding:0.8rem; }
+    .title-main { font-size:1.1rem; }
+    .stat-number { font-size:1.3rem; }
 }
 </style>
 """, unsafe_allow_html=True)
@@ -661,7 +506,7 @@ def page_upload(user):
     uploaded = st.file_uploader('📱 拍照上传作业', type=['jpg', 'jpeg', 'png'])
     if uploaded:
         st.image(Image.open(uploaded), caption='📷 上传的作业', use_container_width=True)
-        if st.button('🤖 题目分析及讲解 🚀'):
+        if st.button('📝 题目分析及讲解 🚀'):
             with st.spinner('正在批改和分析...'):
                 analysis, subject, is_correct = doubao_analyze_image(uploaded.getvalue(), user, grade)
                 st.session_state.auto_analysis = analysis
@@ -673,42 +518,26 @@ def page_upload(user):
     analysis_text = st.session_state.get('auto_analysis', '')
     if analysis_text:
         is_correct = st.session_state.get('auto_is_correct', False)
-        subj_val = st.session_state.get('auto_subject', '数学')
+        subject = st.session_state.get('auto_subject', '数学')
 
         # 显示对错结果
         if is_correct:
-            st.success('🎉 这道题做对了！真棒！')
+            st.success('🎉 这道题做对了！真棒！继续加油！')
         else:
-            st.error('❌ 这道题做错了，一起来看看怎么改正吧')
+            st.error(f'❌ 这道题做错了，已自动保存到【{subject}】错题集')
+
+            # 自动保存到错题本（无需用户操作）
+            img_data = st.session_state.get('auto_img', '')
+            qid = db.insert(
+                'INSERT INTO wrong_questions(child_name,subject,question,wrong_reason,ai_analysis,image_data,created_date) VALUES(?,?,?,?,?,?,?)',
+                (user, subject, analysis_text, '', analysis_text, img_data, str(date.today()))
+            )
+            create_review_schedule(qid, user, subject, str(date.today()))
+            st.balloons()
 
         # 显示分析内容
         st.markdown('### 📝 题目分析及讲解')
         st.markdown(analysis_text)
-
-        # 只有做错的题才显示保存按钮
-        if not is_correct:
-            st.markdown('---')
-            idx = SUBJECTS.index(subj_val) if subj_val in SUBJECTS else 0
-            col1, col2 = st.columns(2)
-            with col1:
-                subject = st.selectbox('📚 科目', SUBJECTS, index=idx)
-            with col2:
-                reason = st.text_input('💭 错误原因（选填）', placeholder='粗心/不懂知识点...')
-            if st.button('💾 保存到错题本（加入艾宾浩斯复习）'):
-                qid = db.insert(
-                    'INSERT INTO wrong_questions(child_name,subject,question,wrong_reason,ai_analysis,image_data,created_date) VALUES(?,?,?,?,?,?,?)',
-                    (user, subject, analysis_text, reason, analysis_text, st.session_state.get('auto_img', ''), str(date.today()))
-                )
-                create_review_schedule(qid, user, subject, str(date.today()))
-                st.success(f'✅ 已保存到错题本！已加入艾宾浩斯复习计划！')
-                st.balloons()
-                st.session_state.auto_analysis = ''
-                st.session_state.auto_subject = '数学'
-                st.session_state.auto_is_correct = False
-                st.session_state.auto_img = ''
-        else:
-            st.markdown('---')
-            st.markdown('💡 做对的题目不需要存入错题本，继续保持！🌟')
 
 # ========== 页面：错题本 ==========
 def page_wrong_list(user):
@@ -1040,10 +869,8 @@ def main_app():
             is_active = (icon == current_short)
             if is_active:
                 st.markdown(
-                    f'<div style="text-align:center;background:#EEF2FF;border-radius:14px;padding:10px 4px;'
-                    f'box-shadow:0 2px 8px rgba(79,70,229,0.12);">'
-                    f'<div style="font-size:1.3rem;line-height:1.4;">{icon}</div>'
-                    f'<div style="font-size:0.7rem;font-weight:700;color:#4F46E5;">{label}</div></div>',
+                    f'<div class="nav-tab-active">'
+                    f'<div>{icon}</div><div>{label}</div></div>',
                     unsafe_allow_html=True
                 )
             else:
