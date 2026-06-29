@@ -9,19 +9,19 @@ if hasattr(sys.stdout, 'reconfigure'):
 # ===================================
 
 import streamlit as st
-import sqlite3
 import base64
 import calendar
 import os
 import tempfile
 import io
 import re
-from datetime import date
+from datetime import date, timedelta
 from openai import OpenAI
 from PIL import Image
 import pandas as pd
 import plotly.express as px
 from gtts import gTTS
+from database import db, init_tables, create_review_schedule, get_today_reviews, get_today_review_count, mark_review_done
 
 # ========== 页面配置（移动端优化） ==========
 st.set_page_config(
@@ -289,91 +289,9 @@ PASSWORDS = {
 
 SUBJECTS = ["语文", "数学", "英语"]
 ALL_USERS = list(CHILDREN.keys()) + ['家长']
-DB_DIR = os.path.dirname(os.path.abspath(__file__))
-DB = os.path.join(DB_DIR, 'study.db')
 
-# ========== 数据库 ==========
-def get_conn():
-    conn = sqlite3.connect(DB, check_same_thread=False)
-    conn.execute('PRAGMA encoding="UTF-8"')
-    return conn
-
-def init_db():
-    conn = get_conn()
-    c = conn.cursor()
-    c.execute(
-        'CREATE TABLE IF NOT EXISTS wrong_questions ('
-        'id INTEGER PRIMARY KEY AUTOINCREMENT, child_name TEXT, subject TEXT, '
-        'question TEXT, wrong_reason TEXT, ai_analysis TEXT, image_data TEXT, '
-        'created_date TEXT, is_mastered INTEGER DEFAULT 0, review_count INTEGER DEFAULT 0)'
-    )
-    c.execute(
-        'CREATE TABLE IF NOT EXISTS checkins ('
-        'id INTEGER PRIMARY KEY AUTOINCREMENT, child_name TEXT, checkin_date TEXT, note TEXT)'
-    )
-    c.execute(
-        'CREATE TABLE IF NOT EXISTS daily_content ('
-        'id INTEGER PRIMARY KEY AUTOINCREMENT, content_date TEXT, content_type TEXT, content TEXT)'
-    )
-    c.execute(
-        'CREATE TABLE IF NOT EXISTS review_schedule ('
-        'id INTEGER PRIMARY KEY AUTOINCREMENT, question_id INTEGER, child_name TEXT, '
-        'subject TEXT, review_date TEXT, stage INTEGER, original_date TEXT, '
-        'completed INTEGER DEFAULT 0)'
-    )
-    conn.commit()
-    conn.close()
-
-init_db()
-
-# ========== 艾宾浩斯复习计划 ==========
-from datetime import timedelta
-
-def create_review_schedule(question_id, child_name, subject, created_date):
-    """为一道错题创建艾宾浩斯复习计划（1/3/7/14/30天后）"""
-    conn = get_conn()
-    base = date.fromisoformat(created_date)
-    for stage, days in enumerate(EBBINGHAUS_INTERVALS, 1):
-        review_date = (base + timedelta(days=days)).isoformat()
-        conn.execute(
-            'INSERT INTO review_schedule(question_id, child_name, subject, review_date, stage, original_date) VALUES(?,?,?,?,?,?)',
-            (question_id, child_name, subject, review_date, stage, created_date)
-        )
-    conn.commit()
-    conn.close()
-
-def get_today_reviews(child_name):
-    """获取今天到期的复习任务"""
-    today = str(date.today())
-    conn = get_conn()
-    rows = conn.execute(
-        'SELECT rs.id, rs.question_id, rs.subject, rs.stage, rs.original_date, '
-        'wq.question, wq.wrong_reason, wq.ai_analysis, wq.image_data '
-        'FROM review_schedule rs JOIN wrong_questions wq ON rs.question_id = wq.id '
-        'WHERE rs.child_name=? AND rs.review_date=? AND rs.completed=0 '
-        'ORDER BY rs.stage, rs.original_date',
-        (child_name, today)
-    ).fetchall()
-    conn.close()
-    return rows
-
-def get_today_review_count(child_name):
-    """获取今天待复习数量"""
-    today = str(date.today())
-    conn = get_conn()
-    n = conn.execute(
-        'SELECT COUNT(*) FROM review_schedule WHERE child_name=? AND review_date=? AND completed=0',
-        (child_name, today)
-    ).fetchone()[0]
-    conn.close()
-    return n
-
-def mark_review_done(review_id):
-    """标记一个复习任务为已完成"""
-    conn = get_conn()
-    conn.execute('UPDATE review_schedule SET completed=1 WHERE id=?', (review_id,))
-    conn.commit()
-    conn.close()
+# ========== 初始化数据库（自动检测 SQLite / TiDB） ==========
+init_tables()
 
 # ========== AI 客户端 ==========
 def get_deepseek():
@@ -465,12 +383,10 @@ def text_to_speech(text, lang='en'):
 # ========== 好词好句（含英语 + 中英双语） ==========
 def get_daily_words(grade):
     today = str(date.today())
-    conn = get_conn()
-    row = conn.execute(
+    row = db.fetchone(
         'SELECT content FROM daily_content WHERE content_date=? AND content_type=?',
         (today, 'daily_words_v2')
-    ).fetchone()
-    conn.close()
+    )
     if row:
         return row[0]
 
@@ -495,24 +411,20 @@ def get_daily_words(grade):
         '注意：英语内容要有中文翻译！句子必须是完整英文句子！'
     )
     content = deepseek_gen(prompt, 1000)
-    conn = get_conn()
-    conn.execute(
+    db.execute(
         'INSERT INTO daily_content(content_date, content_type, content) VALUES(?,?,?)',
         (today, 'daily_words_v2', content)
     )
-    conn.commit()
-    conn.close()
+    db.commit()
     return content
 
 # ========== 学习计划 ==========
 def gen_study_plan(child_name, mode):
-    conn = get_conn()
-    rows = conn.execute(
+    rows = db.fetchall(
         'SELECT subject, question FROM wrong_questions '
         'WHERE child_name=? AND is_mastered=0 ORDER BY created_date DESC LIMIT 15',
         (child_name,)
-    ).fetchall()
-    conn.close()
+    )
     weak = '\n'.join([f'- {s}: {str(q or "")[:30]}' for s, q in rows]) if rows else '暂无错题记录'
     grade = CHILDREN.get(child_name, {}).get('grade', '小学')
     prompt = (
@@ -661,17 +573,15 @@ def page_home(user):
     st.markdown(f'<div class="title-main">🌈 {user} 的学习空间</div>', unsafe_allow_html=True)
     st.markdown(f'<p style="text-align:center;color:#888;">📚 {grade}</p>', unsafe_allow_html=True)
 
-    conn = get_conn()
     today = str(date.today())
     if user in CHILDREN:
-        total    = conn.execute('SELECT COUNT(*) FROM wrong_questions WHERE child_name=?', (user,)).fetchone()[0]
-        mastered = conn.execute('SELECT COUNT(*) FROM wrong_questions WHERE child_name=? AND is_mastered=1', (user,)).fetchone()[0]
-        month_n  = conn.execute('SELECT COUNT(*) FROM checkins WHERE child_name=? AND checkin_date LIKE ?', (user, today[:7]+'%')).fetchone()[0]
+        total    = db.fetchone('SELECT COUNT(*) FROM wrong_questions WHERE child_name=?', (user,))[0]
+        mastered = db.fetchone('SELECT COUNT(*) FROM wrong_questions WHERE child_name=? AND is_mastered=1', (user,))[0]
+        month_n  = db.fetchone('SELECT COUNT(*) FROM checkins WHERE child_name=? AND checkin_date LIKE ?', (user, today[:7]+'%'))[0]
     else:
-        total    = conn.execute('SELECT COUNT(*) FROM wrong_questions').fetchone()[0]
-        mastered = conn.execute('SELECT COUNT(*) FROM wrong_questions WHERE is_mastered=1').fetchone()[0]
+        total    = db.fetchone('SELECT COUNT(*) FROM wrong_questions')[0]
+        mastered = db.fetchone('SELECT COUNT(*) FROM wrong_questions WHERE is_mastered=1')[0]
         month_n  = 0
-    conn.close()
 
     # 今日复习数量
     review_n = get_today_review_count(user)
@@ -749,16 +659,12 @@ def page_upload(user):
         if not analysis_text.strip():
             st.warning('请先上传图片并识别～')
         else:
-            conn = get_conn()
-            cur = conn.execute(
+            qid = db.insert(
                 'INSERT INTO wrong_questions(child_name,subject,question,wrong_reason,ai_analysis,image_data,created_date) VALUES(?,?,?,?,?,?,?)',
                 (user, subject, analysis_text, reason, analysis_text, st.session_state.get('auto_img', ''), str(date.today()))
             )
-            question_id = cur.lastrowid
-            conn.commit()
-            conn.close()
             # 创建艾宾浩斯复习计划
-            create_review_schedule(question_id, user, subject, str(date.today()))
+            create_review_schedule(qid, user, subject, str(date.today()))
             st.success(f'✅ 已保存！已加入艾宾浩斯复习计划！')
             st.balloons()
             st.session_state.auto_analysis = ''
@@ -768,15 +674,13 @@ def page_upload(user):
 # ========== 页面：错题本 ==========
 def page_wrong_list(user):
     st.markdown('<div class="title-main">📖 我的错题本</div>', unsafe_allow_html=True)
-    conn = get_conn()
-
     tabs = st.tabs([f'{SUBJECT_ICONS[s]} {s}' for s in SUBJECTS])
     for tab, subject in zip(tabs, SUBJECTS):
         with tab:
-            rows = conn.execute(
+            rows = db.fetchall(
                 'SELECT id,question,wrong_reason,ai_analysis,created_date,is_mastered FROM wrong_questions WHERE child_name=? AND subject=? ORDER BY id DESC',
                 (user, subject)
-            ).fetchall()
+            )
             if not rows:
                 st.markdown(f'### 🎉 {subject} 暂无错题，太棒了！')
                 continue
@@ -814,43 +718,40 @@ def page_wrong_list(user):
                     col1, col2, col3 = st.columns(3)
                     with col1:
                         if not is_mastered and st.button('✅ 已掌握', key=f'master_{qid}'):
-                            conn.execute('UPDATE wrong_questions SET is_mastered=1 WHERE id=?', (qid,))
-                            conn.commit()
+                            db.execute('UPDATE wrong_questions SET is_mastered=1 WHERE id=?', (qid,))
+                            db.commit()
                             st.rerun()
                     with col2:
                         if st.button('🔄 待复习', key=f'review_{qid}'):
-                            conn.execute('UPDATE wrong_questions SET is_mastered=0 WHERE id=?', (qid,))
-                            conn.commit()
+                            db.execute('UPDATE wrong_questions SET is_mastered=0 WHERE id=?', (qid,))
+                            db.commit()
                             st.rerun()
                     with col3:
                         if st.button('🗑️ 删除', key=f'del_{qid}'):
-                            conn.execute('DELETE FROM wrong_questions WHERE id=?', (qid,))
-                            conn.commit()
+                            db.execute('DELETE FROM wrong_questions WHERE id=?', (qid,))
+                            db.commit()
                             st.rerun()
-    conn.close()
 
 # ========== 页面：打卡 ==========
 def page_checkin(user):
     st.markdown('<div class="title-main">✅ 今日打卡</div>', unsafe_allow_html=True)
     today = str(date.today())
-    conn = get_conn()
-    exists = conn.execute('SELECT 1 FROM checkins WHERE child_name=? AND checkin_date=?', (user, today)).fetchone()
+    exists = db.fetchone('SELECT 1 FROM checkins WHERE child_name=? AND checkin_date=?', (user, today))
     if exists:
         st.success(f'🎉 {user} 今天已打卡！坚持就是胜利！')
         st.balloons()
     else:
         note = st.text_area('今天学了什么？（选填）', placeholder='今天复习了乘法口诀，还学了3个英语单词...')
         if st.button('🌟 完成今日打卡！'):
-            conn.execute('INSERT INTO checkins(child_name,checkin_date,note) VALUES(?,?,?)', (user, today, note))
-            conn.commit()
+            db.execute('INSERT INTO checkins(child_name,checkin_date,note) VALUES(?,?,?)', (user, today, note))
+            db.commit()
             st.success('🎉 打卡成功！你真棒！')
             st.balloons()
             st.rerun()
 
     st.markdown('---')
     st.markdown('### 📅 本月打卡记录')
-    records = conn.execute('SELECT checkin_date FROM checkins WHERE child_name=? AND checkin_date LIKE ?', (user, today[:7]+'%')).fetchall()
-    conn.close()
+    records = db.fetchall('SELECT checkin_date FROM checkins WHERE child_name=? AND checkin_date LIKE ?', (user, today[:7]+'%'))
     checked_dates = {r[0] for r in records}
     today_dt = date.today()
     days_in_month = calendar.monthrange(today_dt.year, today_dt.month)[1]
@@ -887,11 +788,9 @@ def page_plan(user):
             plan = gen_study_plan(user, mode)
         st.markdown('### 📋 你的专属计划')
         st.markdown(plan)
-        conn = get_conn()
-        conn.execute('INSERT INTO daily_content(content_date,content_type,content) VALUES(?,?,?)',
-                     (str(date.today()), f'plan_{user}', plan))
-        conn.commit()
-        conn.close()
+        db.execute('INSERT INTO daily_content(content_date,content_type,content) VALUES(?,?,?)',
+                   (str(date.today()), f'plan_{user}', plan))
+        db.commit()
 
         # PDF 导出
         html = generate_print_html(
@@ -904,12 +803,10 @@ def page_plan(user):
 
     st.markdown('---')
     st.markdown('### 📚 历史计划')
-    conn = get_conn()
-    plans = conn.execute(
+    plans = db.fetchall(
         'SELECT content_date, content FROM daily_content WHERE content_type=? ORDER BY content_date DESC LIMIT 7',
         (f'plan_{user}',)
-    ).fetchall()
-    conn.close()
+    )
     for p_date, p_content in plans:
         with st.expander(f'📅 {p_date}'):
             st.markdown(str(p_content or ''))
@@ -946,11 +843,9 @@ def page_daily_words(user):
 
     st.markdown('---')
     if st.button('🔄 换一批新内容'):
-        conn = get_conn()
-        conn.execute('DELETE FROM daily_content WHERE content_date=? AND content_type=?',
-                     (str(date.today()), 'daily_words_v2'))
-        conn.commit()
-        conn.close()
+        db.execute('DELETE FROM daily_content WHERE content_date=? AND content_type=?',
+                   (str(date.today()), 'daily_words_v2'))
+        db.commit()
         st.rerun()
 
     # PDF 导出
@@ -1040,14 +935,13 @@ def page_review(user):
 # ========== 页面：家长总览 ==========
 def page_parent():
     st.markdown('<div class="title-main">👨‍👩‍👧‍👦 家长总览</div>', unsafe_allow_html=True)
-    conn = get_conn()
     today = str(date.today())
 
     # 每个孩子的卡片
     for child, info in CHILDREN.items():
-        total    = conn.execute('SELECT COUNT(*) FROM wrong_questions WHERE child_name=?', (child,)).fetchone()[0]
-        mastered = conn.execute('SELECT COUNT(*) FROM wrong_questions WHERE child_name=? AND is_mastered=1', (child,)).fetchone()[0]
-        checked  = conn.execute('SELECT COUNT(*) FROM checkins WHERE child_name=? AND checkin_date=?', (child, today)).fetchone()[0]
+        total    = db.fetchone('SELECT COUNT(*) FROM wrong_questions WHERE child_name=?', (child,))[0]
+        mastered = db.fetchone('SELECT COUNT(*) FROM wrong_questions WHERE child_name=? AND is_mastered=1', (child,))[0]
+        checked  = db.fetchone('SELECT COUNT(*) FROM checkins WHERE child_name=? AND checkin_date=?', (child, today))[0]
         color    = info['color']
         status   = '✅ 已打卡' if checked else '❌ 未打卡'
         st.markdown(
@@ -1059,8 +953,7 @@ def page_parent():
         )
 
     st.markdown('---')
-    rows = conn.execute('SELECT child_name, subject, COUNT(*) FROM wrong_questions GROUP BY child_name, subject').fetchall()
-    conn.close()
+    rows = db.fetchall('SELECT child_name, subject, COUNT(*) FROM wrong_questions GROUP BY child_name, subject')
     if rows:
         df = pd.DataFrame(rows, columns=['孩子','科目','错题数'])
         fig = px.bar(df, x='孩子', y='错题数', color='科目', barmode='group',
