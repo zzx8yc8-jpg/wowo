@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git pull *)"
+      "Bash(git pull *)",
+      "Bash(pip show *)",
+      "Bash(PYTHONIOENCODING=utf-8 PYTHONUTF8=1 python -c ' *)"
     ]
   }
 }

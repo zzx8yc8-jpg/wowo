@@ -19,8 +19,7 @@ import streamlit as st
 from datetime import date, timedelta
 
 try:
-    import pymysql
-    import pymysql.cursors
+    import mysql.connector
     HAS_MYSQL = True
 except ImportError:
     HAS_MYSQL = False
@@ -33,7 +32,6 @@ DB_SQLITE = os.path.join(DB_DIR, 'study.db')
 
 # ========== SQL 转换 ==========
 def _sqlite_to_mysql(sql):
-    """将 SQLite 风格的 SQL 转为 MySQL/TiDB 兼容"""
     sql = sql.replace('?', '%s')
     sql = sql.replace('AUTOINCREMENT', 'AUTO_INCREMENT')
     return sql
@@ -41,7 +39,7 @@ def _sqlite_to_mysql(sql):
 
 # ========== 连接管理 ==========
 class _MySQLWrapper:
-    """统一包装 pymysql，暴露出类似 sqlite3 的 API"""
+    """统一包装 mysql.connector，暴露出类似 sqlite3 的 API"""
     def __init__(self, config):
         self.config = config
         self.conn = None
@@ -49,19 +47,14 @@ class _MySQLWrapper:
         self._connect()
 
     def _connect(self):
-        self.conn = pymysql.connect(
+        self.conn = mysql.connector.connect(
             host=self.config['host'],
             port=self.config['port'],
             user=self.config['user'],
             password=self.config['password'],
             database=self.config['database'],
-            ssl={'ssl': {}},
-            charset='utf8mb4',
-            cursorclass=pymysql.cursors.Cursor,
-            autocommit=False,
-            connect_timeout=30,
-            read_timeout=60,
-            write_timeout=60,
+            use_pure=True,
+            connection_timeout=30,
         )
         self.cursor = self.conn.cursor()
 
@@ -75,17 +68,14 @@ class _MySQLWrapper:
                     self.cursor.execute(msql, params)
                 return self
             except Exception as e:
-                if attempt == 0 and self._is_connection_error(e):
-                    # 连接断开，重连后重试一次
-                    self._reconnect()
-                    continue
+                if attempt == 0:
+                    try:
+                        self._reconnect()
+                        continue
+                    except Exception:
+                        pass
                 raise
         return self
-
-    def _is_connection_error(self, e):
-        err_str = str(e).lower()
-        return any(kw in err_str for kw in ['lost connection', 'broken pipe', 'connection reset',
-                                             'timeout', 'server closed', 'write failed'])
 
     def _reconnect(self):
         try:
@@ -96,16 +86,12 @@ class _MySQLWrapper:
             self.conn.close()
         except Exception:
             pass
+        time.sleep(1)
         self._connect()
 
     def executemany(self, sql, params_list):
         msql = _sqlite_to_mysql(sql)
-        try:
-            self.cursor.executemany(msql, params_list)
-        except Exception as e:
-            if self._is_connection_error(e):
-                self._reconnect()
-                self.cursor.executemany(msql, params_list)
+        self.cursor.executemany(msql, params_list)
         return self
 
     def fetchone(self):
@@ -220,17 +206,18 @@ class Database:
         if db_name != 'sys':
             return  # 用户已经用了非 sys 库
         try:
-            temp = pymysql.connect(
+            temp = mysql.connector.connect(
                 host=self._mysql_config['host'],
                 port=self._mysql_config['port'],
                 user=self._mysql_config['user'],
                 password=self._mysql_config['password'],
                 database='sys',
-                ssl={'ssl': {}},
-                connect_timeout=10,
+                connection_timeout=10,
+                use_pure=True,
             )
-            with temp.cursor() as c:
-                c.execute("CREATE DATABASE IF NOT EXISTS studydb")
+            c = temp.cursor()
+            c.execute("CREATE DATABASE IF NOT EXISTS studydb")
+            c.close()
             temp.close()
             self._mysql_config['database'] = 'studydb'
         except Exception as e:
