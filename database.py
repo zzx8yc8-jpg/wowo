@@ -56,8 +56,11 @@ class _MySQLWrapper:
             database=self.config['database'],
             ssl={'ssl': {}},
             charset='utf8mb4',
-            cursorclass=pymysql.cursors.Cursor,  # 返回元组，兼容 SQLite
+            cursorclass=pymysql.cursors.Cursor,
             autocommit=False,
+            connect_timeout=30,
+            read_timeout=60,
+            write_timeout=60,
         )
         self.cursor = self.conn.cursor()
 
@@ -308,36 +311,36 @@ def init_tables():
                 completed INTEGER DEFAULT 0
             )
         ''')
-    # MySQL / TiDB 建表
+    # MySQL / TiDB 建表（用重试防止网络抖动）
     else:
-        db.execute('''
-            CREATE TABLE IF NOT EXISTS wrong_questions (
+        import time
+        for table_sql in [
+            '''CREATE TABLE IF NOT EXISTS wrong_questions (
                 id INTEGER PRIMARY KEY AUTO_INCREMENT,
                 child_name TEXT, subject TEXT,
                 question TEXT, wrong_reason TEXT, ai_analysis TEXT, image_data TEXT,
-                created_date TEXT, is_mastered INTEGER DEFAULT 0, review_count INTEGER DEFAULT 0
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-        ''')
-        db.execute('''
-            CREATE TABLE IF NOT EXISTS checkins (
+                created_date TEXT, is_mastered INTEGER DEFAULT 0, review_count INTEGER DEFAULT 0)''',
+            '''CREATE TABLE IF NOT EXISTS checkins (
                 id INTEGER PRIMARY KEY AUTO_INCREMENT,
-                child_name TEXT, checkin_date TEXT, note TEXT
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-        ''')
-        db.execute('''
-            CREATE TABLE IF NOT EXISTS daily_content (
+                child_name TEXT, checkin_date TEXT, note TEXT)''',
+            '''CREATE TABLE IF NOT EXISTS daily_content (
                 id INTEGER PRIMARY KEY AUTO_INCREMENT,
-                content_date TEXT, content_type TEXT, content TEXT
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-        ''')
-        db.execute('''
-            CREATE TABLE IF NOT EXISTS review_schedule (
+                content_date TEXT, content_type TEXT, content TEXT)''',
+            '''CREATE TABLE IF NOT EXISTS review_schedule (
                 id INTEGER PRIMARY KEY AUTO_INCREMENT,
                 question_id INTEGER, child_name TEXT, subject TEXT,
                 review_date TEXT, stage INTEGER, original_date TEXT,
-                completed INTEGER DEFAULT 0
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-        ''')
+                completed INTEGER DEFAULT 0)''',
+        ]:
+            for attempt in range(3):
+                try:
+                    db.execute(table_sql)
+                    break
+                except Exception:
+                    if attempt < 2:
+                        time.sleep(2)
+                    else:
+                        raise
     db.commit()
 
 
